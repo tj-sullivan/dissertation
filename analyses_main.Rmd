@@ -1,6 +1,10 @@
 ---
-title: "main-analyses" author: "T.J. Sullivan" output: html_document date: "`r
-Sys.Date()`"
+title: "Main Analyses"
+author: "T.J. Sullivan"
+date: "`r Sys.Date()`"
+output: github_document
+editor_options: 
+  chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
@@ -2159,16 +2163,17 @@ sgm_draws |>
   group_by(name) |> 
   median_qi(value, .width = .89)
 ```
+
 There's a relatively wide range here, and the difference is not reliably different from zero. 
 
 ## Covariates
 
 Set up the models: 
 ```{r}
-m1_actor_cov <- bf(PANAS_disc_neg_actor ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + CSI_sum + GlobalCoping_rc_disc + DiscussionOrder + stressor_type_rc_disc + DiscrimTopic_sev + cosy(gr = CoupleID), family = "gaussian")
-m1_partner_cov <- bf(PANAS_disc_neg_partner ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + CSI_sum + GlobalCoping_rc_disc + DiscussionOrder + stressor_type_rc_disc + DiscrimTopic_sev + cosy(gr = CoupleID), family = "gaussian")
-m2_actor_cov <- bf(PANAS_life_neg_actor ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + CSI_sum + GlobalCoping_rc_life + DiscussionOrder + stressor_type_rc_life + StressorTopic_sev + cosy(gr = CoupleID), family = "gaussian")
-m2_partner_cov <- bf(PANAS_life_neg_partner ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + CSI_sum + GlobalCoping_rc_life + DiscussionOrder + stressor_type_rc_life + StressorTopic_sev + cosy(gr = CoupleID), family = "gaussian")
+m1_actor_cov <- bf(PANAS_disc_neg_actor ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + CSI_sum + GlobalCoping_rc_disc + DiscussionOrder + stressor_type_rc_disc + DiscrimTopic_sev + DiscrimTopic_choice + cosy(gr = CoupleID), family = "gaussian")
+m1_partner_cov <- bf(PANAS_disc_neg_partner ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + CSI_sum + GlobalCoping_rc_disc + DiscussionOrder + stressor_type_rc_disc + DiscrimTopic_sev + DiscrimTopic_choice + cosy(gr = CoupleID), family = "gaussian")
+m2_actor_cov <- bf(PANAS_life_neg_actor ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + CSI_sum + GlobalCoping_rc_life + DiscussionOrder + stressor_type_rc_life + StressorTopic_sev + StressorTopic_choice + cosy(gr = CoupleID), family = "gaussian")
+m2_partner_cov <- bf(PANAS_life_neg_partner ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + CSI_sum + GlobalCoping_rc_life + DiscussionOrder + stressor_type_rc_life + StressorTopic_sev + StressorTopic_choice + cosy(gr = CoupleID), family = "gaussian")
 
 y_mod_psych_cov <- bf(CTS_psych_perp_HR ~ 0 + Intercept + 
                     IHS_mean_actor + IHS_mean_partner + 
@@ -2248,24 +2253,28 @@ psych_prior_cov <- c(
   prior(normal(0, 1), class = b, coef = GlobalCoping_rc_disc, resp = PANASdiscnegactor),
   prior(normal(0, 1), class = b, coef = stressor_type_rc_discJointstressor, resp = PANASdiscnegactor),
   prior(normal(0, 1), class = b, coef = DiscrimTopic_sev, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_choiceChosenfordiscussion, resp = PANASdiscnegactor),
   
   prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASdiscnegpartner),
   prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASdiscnegpartner),
   prior(normal(0, 1), class = b, coef = GlobalCoping_rc_disc, resp = PANASdiscnegpartner),
   prior(normal(0, 1), class = b, coef = stressor_type_rc_discJointstressor, resp = PANASdiscnegpartner),
   prior(normal(0, 1), class = b, coef = DiscrimTopic_sev, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_choiceChosenfordiscussion, resp = PANASdiscnegpartner),
   
   prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASlifenegactor),
   prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASlifenegactor),
   prior(normal(0, 1), class = b, coef = GlobalCoping_rc_life, resp = PANASlifenegactor),
   prior(normal(0, 1), class = b, coef = stressor_type_rc_lifeJointstressor, resp = PANASlifenegactor),
   prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = StressorTopic_choiceChosenfordiscussion, resp = PANASlifenegactor),
   
   prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASlifenegpartner),
   prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASlifenegpartner),
   prior(normal(0, 1), class = b, coef = GlobalCoping_rc_life, resp = PANASlifenegpartner),
   prior(normal(0, 1), class = b, coef = stressor_type_rc_lifeJointstressor, resp = PANASlifenegpartner),
-  prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegpartner)
+  prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = StressorTopic_choiceChosenfordiscussion, resp = PANASlifenegpartner)
 )
 ```
 
@@ -2380,29 +2389,34 @@ phys_prior_cov <- c(
   prior(exponential(1), class = sigma, resp = PANASlifenegpartner),
 
   # priors for covariates 
+  # priors for covariates 
   prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASdiscnegactor),
   prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASdiscnegactor),
   prior(normal(0, 1), class = b, coef = GlobalCoping_rc_disc, resp = PANASdiscnegactor),
   prior(normal(0, 1), class = b, coef = stressor_type_rc_discJointstressor, resp = PANASdiscnegactor),
   prior(normal(0, 1), class = b, coef = DiscrimTopic_sev, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_choiceChosenfordiscussion, resp = PANASdiscnegactor),
   
   prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASdiscnegpartner),
   prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASdiscnegpartner),
   prior(normal(0, 1), class = b, coef = GlobalCoping_rc_disc, resp = PANASdiscnegpartner),
   prior(normal(0, 1), class = b, coef = stressor_type_rc_discJointstressor, resp = PANASdiscnegpartner),
   prior(normal(0, 1), class = b, coef = DiscrimTopic_sev, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_choiceChosenfordiscussion, resp = PANASdiscnegpartner),
   
   prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASlifenegactor),
   prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASlifenegactor),
   prior(normal(0, 1), class = b, coef = GlobalCoping_rc_life, resp = PANASlifenegactor),
   prior(normal(0, 1), class = b, coef = stressor_type_rc_lifeJointstressor, resp = PANASlifenegactor),
   prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = StressorTopic_choiceChosenfordiscussion, resp = PANASlifenegactor),
   
   prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASlifenegpartner),
   prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASlifenegpartner),
   prior(normal(0, 1), class = b, coef = GlobalCoping_rc_life, resp = PANASlifenegpartner),
   prior(normal(0, 1), class = b, coef = stressor_type_rc_lifeJointstressor, resp = PANASlifenegpartner),
-  prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegpartner)
+  prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = StressorTopic_choiceChosenfordiscussion, resp = PANASlifenegpartner)
 )
 ```
 
@@ -2523,24 +2537,28 @@ sgm_prior_cov <- c(
   prior(normal(0, 1), class = b, coef = GlobalCoping_rc_disc, resp = PANASdiscnegactor),
   prior(normal(0, 1), class = b, coef = stressor_type_rc_discJointstressor, resp = PANASdiscnegactor),
   prior(normal(0, 1), class = b, coef = DiscrimTopic_sev, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_choiceChosenfordiscussion, resp = PANASdiscnegactor),
   
   prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASdiscnegpartner),
   prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASdiscnegpartner),
   prior(normal(0, 1), class = b, coef = GlobalCoping_rc_disc, resp = PANASdiscnegpartner),
   prior(normal(0, 1), class = b, coef = stressor_type_rc_discJointstressor, resp = PANASdiscnegpartner),
   prior(normal(0, 1), class = b, coef = DiscrimTopic_sev, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_choiceChosenfordiscussion, resp = PANASdiscnegpartner),
   
   prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASlifenegactor),
   prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASlifenegactor),
   prior(normal(0, 1), class = b, coef = GlobalCoping_rc_life, resp = PANASlifenegactor),
   prior(normal(0, 1), class = b, coef = stressor_type_rc_lifeJointstressor, resp = PANASlifenegactor),
   prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = StressorTopic_choiceChosenfordiscussion, resp = PANASlifenegactor),
   
   prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASlifenegpartner),
   prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASlifenegpartner),
   prior(normal(0, 1), class = b, coef = GlobalCoping_rc_life, resp = PANASlifenegpartner),
   prior(normal(0, 1), class = b, coef = stressor_type_rc_lifeJointstressor, resp = PANASlifenegpartner),
-  prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegpartner)
+  prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = StressorTopic_choiceChosenfordiscussion, resp = PANASlifenegpartner)
 )
 ```
 
@@ -2716,6 +2734,7 @@ bpaths_no_cov <- b_life_actorNA |>
   left_join(b_disc_partnerNA)
 bpaths_no_cov
 ```
+
 Great, now let's also pull results from the model with covariates:
 ```{r, warning = F}
 # bpaths post-life, actor NA 
@@ -2727,7 +2746,8 @@ b_life_actorNA_cov <- as_draws_df(aim3_psych_cov) |>
          b4_DC = b_PANASlifenegactor_GlobalCoping_rc_life,
          b5_order = b_PANASlifenegactor_DiscussionOrderLifestressordiscussionfirst,
          b6_type = b_PANASlifenegactor_stressor_type_rc_lifeJointstressor,
-         b7_sev = b_PANASlifenegactor_StressorTopic_sev) |> 
+         b7_sev = b_PANASlifenegactor_StressorTopic_sev,
+         b8_choice = b_PANASlifenegactor_StressorTopic_choiceChosenfordiscussion) |> 
   pivot_longer(everything()) |> 
   group_by(name) |> 
   median_qi(value, .width = .89) |> 
@@ -2750,7 +2770,8 @@ b_life_partnerNA_cov <- as_draws_df(aim3_psych_cov) |>
          b4_DC = b_PANASlifenegpartner_GlobalCoping_rc_life,
          b5_order = b_PANASlifenegpartner_DiscussionOrderLifestressordiscussionfirst,
          b6_type = b_PANASlifenegpartner_stressor_type_rc_lifeJointstressor,
-         b7_sev = b_PANASlifenegpartner_StressorTopic_sev) |> 
+         b7_sev = b_PANASlifenegpartner_StressorTopic_sev,
+         b8_choice = b_PANASlifenegpartner_StressorTopic_choiceChosenfordiscussion) |> 
   pivot_longer(everything()) |> 
   group_by(name) |> 
   median_qi(value, .width = .89) |> 
@@ -2773,7 +2794,8 @@ b_disc_actorNA_cov <- as_draws_df(aim3_psych_cov) |>
          b4_DC = b_PANASdiscnegactor_GlobalCoping_rc_disc,
          b5_order = b_PANASdiscnegactor_DiscussionOrderLifestressordiscussionfirst,
          b6_type = b_PANASdiscnegactor_stressor_type_rc_discJointstressor,
-         b7_sev = b_PANASdiscnegactor_DiscrimTopic_sev) |> 
+         b7_sev = b_PANASdiscnegactor_DiscrimTopic_sev,
+         b8_choice = b_PANASdiscnegactor_DiscrimTopic_choiceChosenfordiscussion) |> 
   pivot_longer(everything()) |> 
   group_by(name) |> 
   median_qi(value, .width = .89) |> 
@@ -2796,7 +2818,8 @@ b_disc_partnerNA_cov <- as_draws_df(aim3_psych_cov) |>
          b4_DC = b_PANASdiscnegpartner_GlobalCoping_rc_disc,
          b5_order = b_PANASdiscnegpartner_DiscussionOrderLifestressordiscussionfirst,
          b6_type = b_PANASdiscnegpartner_stressor_type_rc_discJointstressor,
-         b7_sev = b_PANASdiscnegpartner_DiscrimTopic_sev) |> 
+         b7_sev = b_PANASdiscnegpartner_DiscrimTopic_sev,
+         b8_choice = b_PANASdiscnegpartner_DiscrimTopic_choiceChosenfordiscussion) |> 
   pivot_longer(everything()) |> 
   group_by(name) |> 
   median_qi(value, .width = .89) |> 

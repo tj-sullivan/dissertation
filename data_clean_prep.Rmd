@@ -495,7 +495,7 @@ data %>%
   filter(missing_PANASdisc == F)
 ```
 
-N for analyses with covariates is 73 couples (n = 146 individs):
+N for analyses with covariates is 72 couples (n = 144 individs):
 ```{r}
 data %>% 
   # 2 couples excluded 
@@ -510,7 +510,9 @@ data %>%
   # 5 couples excluded
   filter(missing_GlobalDClife == F) %>% 
   # 1 couple excluded 
-  filter(missing_GlobalDCdisc == F)
+  filter(missing_GlobalDCdisc == F) %>% 
+  # 1 additional couple excluded b/c one partner did not report on race/ethnicity
+  filter(CoupleID != 1083)
 ```
 
 # Saving data file for analyses

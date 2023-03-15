@@ -2,7 +2,9 @@
 title: "analyses_basic"
 author: "T.J. Sullivan"
 date: "`r Sys.Date()`"
-output: html_document
+output: github_document
+editor_options: 
+  chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
@@ -22,6 +24,7 @@ library(cmdstanr)
 options(mc.cores = 4,
         brms.backend = "cmdstanr")
 library(easystats)
+library(tidybayes)
 ```
 
 Load the dataframe that we'll use for these analyses (created from data_clean_prep file). Note that the rest of the code in this document utilizes this dataframe, so this is where it can be edited to re-run descriptives for the full (n = 84 couples) vs maximum analytic sample (n = 82 couples). 
@@ -237,7 +240,7 @@ data %>%
   mutate(max = round(max, digits = 2)) %>% 
   unite(range, c("min", "max"), sep = "-")
 ```
-TO DO (?): save these descriptives into a table. If included in bivariate correlation table, flip `Colnames` and `.value` arguments above. 
+Possible TO DO: save these descriptives into a table. If included in bivariate correlation table, flip `Colnames` and `.value` arguments above. 
 
 # Reliability
 
@@ -254,6 +257,7 @@ data %>% select(IHS_1:IHS_9) %>% omega(plot = F)
 ## CTS2
 
 The reliability functions cannot accommodate missing data on any of the variables. If you do reliability with all 12 physical assault items, it will throw an error for `CTS_phys_weapon_perp` because this case is removed from the analysis. It will run excluding that item: 
+
 ```{r}
 data %>% select(CTS_phys_threw_perp:CTS_phys_kick_perp) %>% na.omit() %>% select(-CTS_phys_weapon_perp) %>% omega(plot = F)
 ```
@@ -332,7 +336,7 @@ corr_model <- brm(
 )
 ```
 
-That's a hell of a lot to work through and so I didn'nt bother to summarize the output here (but it did sample well). Let's wrangle that data into a matrix for reporting. We'll take advantage of the fact that the `matrix()` function in R will split up a single column into a matrix going down the column (e.g., if there are 10 values, values 1-5 go in column1 and then 6-10 go in column2). We'll use this to label the correlation coefficients from the output in the order that we want. I create an Excel sheet with what I wanted the correlation matrix to look like to guide me through this part. Perhaps one day I'll figure out a way to automate a function to do this for me automatically, but today is not that day. 
+That's a hell of a lot to work through and so I didn't bother to summarize the output here (but it did sample well). Let's wrangle that data into a matrix for reporting. We'll take advantage of the fact that the `matrix()` function in R will split up a single column into a matrix going down the column (e.g., if there are 10 values, values 1-5 go in column1 and then 6-10 go in column2). We'll use this to label the correlation coefficients from the output in the order that we want. I created an Excel sheet with what I wanted the correlation matrix to look like to guide me through this part. Perhaps one day I'll figure out a way to automate a function to do this for me automatically, but today is not that day. 
 
 ```{r}
 output <- as_draws_df(corr_model) |> 
@@ -422,7 +426,8 @@ write.csv(output_matrix, "output/corr_table1.csv")
 
 For now, let's keep things simple and not include these correlations in the main dissertation document. However, they are important to know for contextualizing results. Let's have a quick look at this, using the `correlation` package from `easystats`. 
 
-First, let's look at covariates on negative affect - this is a "quick & dirty" method, ignonre the significance tests b/c they are inaccurate. 
+First, let's look at covariates on negative affect - this is a "quick & dirty" method, ignore the significance tests b/c they are inaccurate due to couple nesting. 
+
 ```{r}
 corr_na <- data |> 
   select(NA_life = PANAS_life_neg, 
@@ -457,6 +462,7 @@ display(s_ipv)
 
 Let's look to see if missing data is meaningfully related to key variables of interest: IHS, IPV perpetration, PANAS, relationship length, age, relationship satisfaction.
 
+As a reminder, here's how many have complete data: 
 ```{r}
 data %>% 
   # 2 couples excluded 
@@ -471,7 +477,7 @@ data %>%
   # 5 couples excluded
   filter(missing_GlobalDClife == F) %>% 
   # 1 couple excluded 
-  filter(missing_GlobalDCdisc == F) |> 
+  filter(missing_GlobalDCdisc == F) %>% 
   # 1 additional couple excluded b/c one partner did not report on race/ethnicity
   filter(CoupleID != 1083)
 ```
@@ -484,6 +490,7 @@ frq(data$missing_any)
 ```
 
 Next, let's run a series of linear regressions to see if missing any data is related to meaningful differences in our variables of interest. We'll do this in a frequentist framework as these are preliminary analyses and these estimates are likely to be very similar in a Bayesian model. 
+
 ```{r}
 summary(lm(IHS_mean ~ missing_any, data = data))
 
@@ -507,6 +514,7 @@ summary(lm(Age ~ missing_any, data = data))
 The only reliable effect here was those missing data reported shorter relationships than those not. This is likely not a large concern for this study, as some of the preliminary analyses above did not show that relationship was correlated significantly or strongly with any of the main variables of interest (internalized stigma, negative affect, and IPV). 
 
 For reporting, let's re-run the linear regression on relationship length in `brms`:
+
 ```{r}
 rel_length_missing <- brm(
   rel_length_yrs ~ 1 + missing_any, 
@@ -533,3 +541,4 @@ For life stressor topic discussions:
 summary(lm(PANAS_life_neg ~ StressorTopic_choice_prior, data = data))
 ```
 
+We see here that it was not. 

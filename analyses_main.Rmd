@@ -1,0 +1,3757 @@
+---
+title: "main-analyses" author: "T.J. Sullivan" output: html_document date: "`r
+Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This document contains all of the main analyses to report for the actor-partner interdependence models for Aims 1-3. Load packages we'll need:
+
+```{r, message = F, warning = F}
+library(tidyverse)
+library(sjmisc)
+library(psych)
+library(brms)
+library(cmdstanr)
+# set options for brms to utilized cmdstanr rather than rstan default
+options(mc.cores = 4,
+        brms.backend = "cmdstanr")
+library(simstudy)
+library(marginaleffects)
+library(tidybayes)
+library(easystats)
+```
+
+Set options for Load the dataframe that we'll use for these analyses (created from data_clean_prep file).
+
+```{r}
+data_clean <- readRDS("data/CCS_data_cleaned.rds")
+```
+
+# Prep for analyses
+
+Let's clean up the dataframe so we only have the summary variables and relevant covaraites - we don't need item level data for the main analyses here.
+
+```{r}
+data <- data_clean |>
+  select(CoupleID, ParticipantID,
+         # main variables
+         IHS_mean, PANAS_disc_neg, PANAS_life_neg, CTS_phys_perp_HR, CTS_psych_perp_HR, CTS_sgm_perp_HR,
+         # covariates
+         Age, rel_length_yrs, sxlorx_dich, gender_three, race_dich, 
+         CSI_sum, DiscussionOrder,
+         GlobalCoping_rc_disc, stressor_type_rc_disc, DiscrimTopic_sev, DiscrimTopic_choice, 
+         GlobalCoping_rc_life, stressor_type_rc_life, StressorTopic_sev, StressorTopic_choice,
+         starts_with("missing"))
+glimpse(data)
+```
+
+Need to make IHS and PANAS into actor & partner effects. We're going to pull a function created based on Kenny et al.'s (2006) Doing Dyadic Data Analyses book.
+
+```{r}
+long_to_pw <- function(df, dyadid, var){
+  df %>%
+    group_by({{dyadid}}) %>%
+    mutate("{{var}}_partner" := coalesce(lead({{var}}), lag({{var}}))) %>%
+    ungroup() %>%
+    rename("{{var}}_actor" := {{var}}) %>%
+    relocate(ends_with("_partner"), .after = ends_with("_actor"))
+}
+data <- long_to_pw(data, CoupleID, IHS_mean)
+data <- long_to_pw(data, CoupleID, PANAS_disc_neg)
+data <- long_to_pw(data, CoupleID, PANAS_life_neg)
+glimpse(data)
+```
+
+Go ahead and standardized or grand-mean center continuous predictors.
+
+```{r}
+center <- function(x){
+  (x - mean(x, na.rm = T))
+}
+std <- function(x){
+  (x - mean(x, na.rm = T)) / sd(x, na.rm = T)
+}
+data <- data |>
+  mutate(across(c(GlobalCoping_rc_disc, GlobalCoping_rc_life, DiscrimTopic_sev, StressorTopic_sev), center)) |>
+  mutate(across(c(Age, rel_length_yrs, CSI_sum, IHS_mean_actor, IHS_mean_partner, PANAS_disc_neg_actor, PANAS_life_neg_actor, PANAS_disc_neg_partner, PANAS_life_neg_partner), std))
+```
+
+I made the decision to standardize most variables for ease of interpretation and to keep model estimation simpler - it is possible to have sampling issues if you have many variables with wildly different scales. 
+
+Create a binary outcome variable for physical and SGM-specific IPV:
+```{r}
+data <- data |> 
+  mutate(CTS_phys_perp_binary = if_else(CTS_phys_perp_HR > 0, 1, 0),
+         CTS_sgm_perp_binary = if_else(CTS_sgm_perp_HR > 0, 1, 0)) |> 
+  relocate(c(CTS_phys_perp_binary, CTS_sgm_perp_binary), .after = CTS_sgm_perp_HR)
+```
+
+
+# Model likelihood
+
+Before we start on any of the main analyses, we need to properly specify the likelihood to be used in `brms()` models. We'll be utilizing a hurdle model approach, which models both the occurrence and the frequency of IPV perpetration. The occurrence is modeled as a logistic regression (0/1 did it happen or not). Frequency is modeled among those who had 1s (happened) and can be specified in as a Poisson or negative binomial distribution. Typically, we justify Poisson vs. negative binomial by looking at the mean & variance of the outcome variable. Poisson is only appropriate when the mean and variance are roughly equal. This is *not* the case for pretty much all of the variables (see output from analyses_basic.Rmd files), so we'll go for the negative binomial distribution in these analyses. Before we get into any more complex model building, let's go ahead and run an outcomes-only model for each type of IPV so we can see what that looks like and to build up some of the interpretation here. We'll do so using default priors in `brms()` . Reported analyses will utilize informative priors based on prior work (see below). 
+
+For future reference, here are more resources on the hurdle modeling approach that were consulted in this: 
+- <https://www.andrewheiss.com/blog/2022/05/09/hurdle-lognormal-gaussian-brms/> 
+- For hurdle distribution functions: <https://rdrr.io/cran/brms/man/Hurdle.html> 
+- Marginal effects package page that has material on processing stuff: <https://vincentarelbundock.github.io/marginaleffects/articles/comparisons.html#ratios> 
+
+## Priors 
+
+### Default
+
+Ok so let's take a look at what these models look like with default priors here. We'll split this up by psychological and then physical & SGM-specific IPV perpetration b/c there are vastly different rates of zeroes across these two variables. For psych, almost everyone perpetrated a little bit wheres for physical and SGM-specific, only ~15% of the sample had endorsed any perpetration in the past year. Let's run these models:
+
+```{r}
+like_psych <- brm(bf(CTS_psych_perp_HR ~ 1,
+                     hu ~ 1),
+                  data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_psych",
+                  file_refit = "on_change"
+                  )
+
+like_phys <- brm(bf(CTS_phys_perp_HR ~ 1,
+                     hu ~ 1),
+                  data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_phys",
+                  file_refit = "on_change"
+                  )
+
+like_sgm <- brm(bf(CTS_sgm_perp_HR ~ 1,
+                   hu ~ 1),
+                  data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_sgm",
+                  file_refit = "on_change"
+                  )
+```
+
+Let's take a look at psych IPV perpetration first. Let's go ahead and summarize that model here: 
+
+```{r}
+summary(like_psych)
+```
+
+The Intercept population-level effect here is the negative binomial term. This is in the log scale, which needs to be exponentiated for interpretation. In the above model, the Intercept term is 2.94. That would correspond to:
+
+```{r}
+exp(2.94)
+```
+
+This is the "rate" for the Poisson distribution, which is just the mean & is also called lambda. The shape parameter basically describes the Poisson rates across each of the cases b/c we have parameterized this model to allow for each case to have it's own rate to account for over-dispersion. This is not directly interpreted. hu_Intercept term is the proportion of zeros in the data. This is in the logit scale, which needs to be back-transformed for interpretation. In the above model, the hu_Intercept term is -2.33. That would correspond to:
+
+```{r}
+inv_logit_scaled(-2.33)
+```
+
+Which means the estimated proportion of 0s in the data is 8.9%. That's not terribly far from the empirical proportion of 0s for psych IPV perpetration (8.5%). So overall, this basic model here predicts that the probability of no psychological IPV perpetration is 8.5% and, among those who do perpetrate, they perpetrate an estimated 18.92 acts (past-year). 
+
+Now let's do this for physical:
+
+```{r}
+summary(like_phys)
+```
+
+Mean/rate:
+
+```{r}
+exp(-3.23)
+```
+
+% of 0s:
+
+```{r}
+plogis(1.70)
+```
+
+We see here that the proportion of zeroes predicted by the model is pretty close to the observed data (84%) but the mean rate of IPV is VASTLY underestimated relative to the empirical mean here. However, there is a HUGE range of credible values for that mean rate (range from 0 to 2.16, which is closer to the empirial mean at the tail end). What this means is that the model is pretty uncertain about what that rate could be, and this is likely because there is just so little data from which to make this estimation. Further, we have a pretty severe outlier in the couple. For now, we're going to keep that couple in b/c, as McElreath notes, outliers are sometimes true data to not be discarded. We'll do some sensitivity analyses later on to see how they influence parameter estimation. 
+
+Note we also get a warning about a divergent transition - that's ok for now, there's still rather effective sampling and we'll make sure the final models don't have these. 
+
+Finally, let's look at SGM-specific perpetration:
+
+```{r}
+summary(like_sgm)
+```
+
+Mean rate:
+
+```{r}
+exp(-2.47)
+```
+
+\% of 0s:
+
+```{r}
+plogis(1.84)
+```
+
+Again, we see that the prediction of zeroes is pretty close to the empirical data but the overall mean is pretty under-estimated relative to the empirical means. 
+
+OK. SO. The default priors are bad. We know that they are going to have a minimal influence on the parameter estimates and so they're going to rely on the data more for estimating the posterior. This is probably fine for psychological IPV b/c we have a good amount of data there, but this is definitely not fine for physical and SGM-specific IPV because of the low rates of perpetration. And, regardless, we can do better b/c we have content domain knowledge about what are reasonable bounds of the data for these models. 
+
+One question I have is how the hurdle model works with simulated data, so I can see whether the model actually picks up on the population parameters that we used. It's real possible that these models get finicky with the physical and SGM-specific IPV perpetration estimates b/c there is so little data. In this next section, I play around with priors for these models. 
+
+### Simulating hurdle models 
+
+We'll separate out these simulations b/c physical & SGM-specific IPV would be expected to have low proportions of zeroes, whereas psych IPV should have high proportions of zeroes. This will require some different priors. 
+
+#### Physical & SGM-specific IPV
+
+First, let's see what the default priors are for these models: 
+
+```{r}
+prior_summary(like_phys)
+```
+
+This are pretty broad, and will allow the data to have free reign on the posterior. Let's simulate some data from the `simstudy` package. 
+
+First, simulate some data:
+```{r}
+# set population parameters - formula is the Intercept rate and the variance is the dispersion parameter
+def <- defData(varname = "ipv", dist = "negBinomial", formula = 1, variance = 15, link = "log")
+
+# simulate a dataset of 184 people to utilize
+set.seed(12345)
+dd <- genData(168, def)
+```
+
+Let's see what that looks like
+```{r}
+dd |> frq(ipv)
+ggplot(dd, aes(x = ipv)) + geom_histogram(binwidth = 1)
+```
+
+Now, let's go ahead and run the model:
+
+```{r}
+sim_phys_1 <- brm(bf(ipv ~ 1,
+                     hu ~ 1),
+                     data = dd,
+                     family = hurdle_negbinomial(),
+                     chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                     seed = 1234,
+                     file = "fits/sim_phys_1",
+                     file_refit = "on_change"
+                )
+```
+
+And summarize the output: 
+```{r}
+summary(sim_phys_1)
+```
+
+This result is somewhat similar to what we had with the observed data for physical or SGM-specific IPV. In this model, we'd want to see an Intercept around 1 because this is the population parameter that we simulated (but we're not getting that). In other words, when there's really high variance/dispersion going on here, we don't get accurate recovery of the mean/rate parameters in the population. It's not even the 95% compatibility interval, so that's pretty severe. 
+
+Let's also do a posterior predictive check to see how well the model-implied predicted values correspond to the actual data.
+
+```{r}
+pp_check(sim_phys_1, ndraws = 100)
+```
+
+Not the worst in the world, but it's not doing a particularly good job here either. 
+
+Let's take a look at what some more sensible priors would look like. Note, for documentation here I just have the ones that I landed on but different values can be played around with if needed.
+
+```{r}
+# a is the Intercept term ON THE LOG SCALE, b is the hu_Intercept term ON THE LOG ODDS/LOGIT SCALE; we then back-transform to see what these priors imply about the observed data
+set.seed(1234)
+psim <- tibble(a = rnorm(1e4, mean = 0, sd = 0.8),
+               b = rnorm(1e4, mean = 1.5, sd = 1)) |>
+  mutate(lambda = exp(a),
+         hu = inv_logit_scaled(b))
+```
+
+Let's take a look at the Intercept term (expected mean/rate)
+```{r, warning = F, fig.show = "hold", out.width = "25%"}
+ggplot(psim, aes(x = a)) + geom_histogram() + xlab("Intercept - log scale")
+ggplot(psim, aes(x = lambda)) + geom_histogram(binwidth = 1) + xlab("Intercept - outcome scale")
+```
+
+And the hu_Intercept term (proportion of 0s in the data)
+```{r, warning = F, fig.show = "hold", out.width = "25%"}
+ggplot(psim, aes(x = b)) + geom_histogram() + xlab("hu_Intercept - logit scale")
+ggplot(psim, aes(x = hu)) + geom_histogram() + xlab("hu_Intercept - outcome scale")
+```
+
+Finally, we have the shape parameter that we want to think about. First let's simulate that default prior:
+```{r}
+set.seed(1234)
+psim <- psim |> 
+  mutate(c = rgamma(1e4, 0.01, 0.01))
+```
+
+Then plot it:
+```{r}
+ggplot(psim, aes(x = c)) + geom_histogram() + xlab("Shape/dispersion - gamma(0.01, 0.01)")
+```
+We see here that there are plausible values that go into the 100s. Note that this is on the scale of the data, although it's a little weird to interpret the parameter directly. That's pretty wild, let's keep it at a more reasonable level with the weakly regularizing exponential(1) prior: 
+
+```{r}
+set.seed(1234)
+psim <- psim |> 
+  mutate(c = rexp(1e4, 1))
+ggplot(psim, aes(x = c)) + geom_histogram() + xlab("Shape/dispersion - exponential(1)")
+```
+That's much more reasonable here. Wonderful! 
+
+Great, those all look pretty reasonable in terms of the mean/rate & the probability of being a 0 & the dispersion. Let's go ahead and re-run the model with these priors. We'll also place a more regularized prior on the dispersion parameter (labeled shape) so it's not going to go off into the wild too much. 
+
+```{r}
+sim_phys_2 <- brm(bf(ipv ~ 1,
+                     hu ~ 1),
+                  prior = c(prior(normal(0, 0.8), class = Intercept), # prior on mean (log scale)
+                            prior(normal(1.5, 1), class = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                     data = dd,
+                     family = hurdle_negbinomial(),
+                     chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                     seed = 1234,
+                     file = "fits/sim_phys_2",
+                     file_refit = "on_change"
+                )
+```
+
+And summarize the output: 
+```{r}
+summary(sim_phys_2)
+```
+
+Now this is MUCH better - we see that the Intercept is roughly within the range of the population parameter. Further, we see that the compatibility interval around that estimate now contains the true population parameter (1.0), which is much more encouraging. These priors still leave some room for the data to speak to the story of what is going on here. 
+
+Finally, let's take a look at the posterior predictive check:
+```{r}
+pp_check(sim_phys_2, ndraws = 100)
+```
+
+That's roughly within the bounds of the simulated data as well, although the model does predict some potential really extreme values out in the tails. That's ok - that is possible in these data where you might get a really aggressive couple or two in the sample. 
+
+#### Psych IPV
+
+Now let's fiddle with some data simulation where the rate of zeroes in psych IPV is closer to 10% (vs. 80ish% for physical & SGM-specific IPV).
+
+First, simulate some data:
+```{r}
+# set population parameters - formula is the Intercept rate and the variance is the dispersion parameter
+def <- defData(varname = "ipv", dist = "negBinomial", formula = 3, variance = 2, link = "log")
+
+# simulate a dataset of 184 people to utilize
+set.seed(12345)
+dd <- genData(168, def)
+```
+
+Let's see what that looks like
+```{r}
+dd |> frq(ipv)
+ggplot(dd, aes(x = ipv)) + geom_histogram(binwidth = 1)
+```
+
+Now, let's go ahead and run the model:
+
+```{r}
+sim_psych_1 <- brm(bf(ipv ~ 1,
+                     hu ~ 1),
+                     data = dd,
+                     family = hurdle_negbinomial(),
+                     chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                     seed = 1234,
+                     file = "fits/sim_psych_1",
+                     file_refit = "on_change"
+                )
+```
+
+And summarize the output: 
+```{r}
+summary(sim_psych_1)
+```
+
+We see here that, UNLIKE the physical & SGM-specific IPV, the default priors do a much better job in this model. We see parameter estimates that are roughly equivalent to the population parameters that we simulated here. Let's see how the posterior predictive check fairs:
+
+```{r}
+pp_check(sim_psych_1, ndraws = 100)
+```
+
+Not too shabby here! 
+
+Still, we want to make sure that we have reasoned priors that incorporate our domain knowledge about psych IPV perpetration into the model (rather than just based on the data at hand). 
+
+```{r}
+# a is the Intercept term ON THE LOG SCALE, b is the hu_Intercept term ON THE LOG ODDS/LOGIT SCALE; we then back-transform to see what these priors imply about the observed data
+set.seed(1234)
+psim <- tibble(a = rnorm(1e4, mean = 1, sd = 0.5),
+               b = rnorm(1e4, mean = -1.5, sd = 1)) |>
+  mutate(lambda = exp(a),
+         hu = inv_logit_scaled(b))
+```
+
+Let's take a look at the Intercept term (expected mean/rate)
+```{r, warning = F, fig.show = "hold", out.width = "25%"}
+ggplot(psim, aes(x = a)) + geom_histogram() + xlab("Intercept - log scale")
+ggplot(psim, aes(x = lambda)) + geom_histogram(binwidth = 1) + xlab("Intercept - outcome scale")
+```
+
+And the hu_Intercept term (proportion of 0s in the data)
+```{r, warning = F, fig.show = "hold", out.width = "25%"}
+ggplot(psim, aes(x = b)) + geom_histogram() + xlab("hu_Intercept - logit scale")
+ggplot(psim, aes(x = hu)) + geom_histogram() + xlab("hu_Intercept - outcome scale")
+```
+
+Now let's re-run the model with those priors:
+```{r}
+sim_psych_2 <- brm(bf(ipv ~ 1,
+                      hu ~ 1),
+                  prior = c(prior(normal(1, 0.5), class = Intercept), # prior on mean (log scale)
+                            prior(normal(-1.5, 1), class = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                     data = dd,
+                     family = hurdle_negbinomial(),
+                     chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                     seed = 1234,
+                     file = "fits/sim_psych_2",
+                     file_refit = "on_change"
+                )
+```
+
+Summarize:
+```{r}
+summary(sim_psych_2)
+```
+
+It's really not that different from the original, default priors. This is good! It might not matter for this basic, intercept-only model that doesn't account for nesting but it might in future models as we get more complex here. Let's check out the posterior predictive check as well:
+
+```{r}
+pp_check(sim_psych_2, ndraws = 100)
+```
+
+Also doing a really nice job here still! 
+
+One thing to note for your future self is that the Intercept parameter in these hurdle models seems to correspond to the OVERALL mean in the data. It's not necessarily picking up on the mean of those who are > 0. 
+
+### Informative 
+
+Now that we've specified some priors, let's re-run the basic models from before with these priors in place. 
+
+```{r}
+like_psych_1 <- brm(bf(CTS_psych_perp_HR ~ 1,
+                     hu ~ 1),
+                  prior = c(prior(normal(1, 0.5), class = Intercept), # prior on mean (log scale)
+                            prior(normal(-1.5, 1), class = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                  data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_psych_1",
+                  file_refit = "on_change"
+                  )
+
+like_phys_1 <- brm(bf(CTS_phys_perp_HR ~ 1,
+                     hu ~ 1),
+                  prior = c(prior(normal(0, 0.8), class = Intercept), # prior on mean (log scale)
+                            prior(normal(1.5, 1), class = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                 data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_phys_1",
+                  file_refit = "on_change"
+                  )
+
+like_sgm_1 <- brm(bf(CTS_sgm_perp_HR ~ 1,
+                   hu ~ 1),
+                  prior = c(prior(normal(0, 0.8), class = Intercept), # prior on mean (log scale)
+                            prior(normal(1.5, 1), class = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_sgm_1",
+                  file_refit = "on_change"
+                  )
+```
+
+Now let's summarize. Psychological:
+```{r}
+summary(like_psych_1)
+```
+
+Physical:
+```{r}
+summary(like_phys_1)
+```
+
+SGM-specific:
+```{r}
+summary(like_sgm_1)
+```
+
+Now we see that the intervals for all of these models are much tighter and within the bounds of the data. Just for curiosity, let's see what the posterior predictive checks show. 
+
+Psychological:
+```{r}
+pp_check(like_psych_1, ndraws = 100)
+```
+
+Physical:
+```{r}
+pp_check(like_phys_1, ndraws = 100)
+```
+
+SGM_specific:
+```{r}
+pp_check(like_sgm_1, ndraws = 100)
+```
+
+Not too terrible there with any of these! Physical is the least similar, but not that the wide range is likely because of the one couple (1082) with a very large number of physical acts (213) so it's going to show on the y-axis there. 
+
+Up to now, we've been ignoring the non-independence that is introduced by couple nesting. This is absolutely something we are going to have to model, so now let's turn to how we can set some sensible priors when we account for dyad-level variation in estimated odds of being a 0 and mean/rates of IPV perpetraton frequency. 
+
+### Couple nesting
+
+Let's see what happens when we account for dyadic interdependence. We'll leave the default prior on intercept variation in these models to see what that looks like. 
+
+```{r}
+like_psych_2 <- brm(bf(CTS_psych_perp_HR ~ 0 + Intercept + (1 | CoupleID),
+                     hu ~ 0 + Intercept+ (1 | CoupleID)),
+                  prior = c(prior(normal(1, 0.5), class = b, coef = Intercept), # prior on mean (log scale)
+                            prior(normal(-1.5, 1), class = b, coef = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                  data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_psych_2",
+                  file_refit = "on_change"
+                  )
+
+like_phys_2 <- brm(bf(CTS_phys_perp_HR ~ 0 + Intercept+ (1 | CoupleID),
+                     hu ~ 0 + Intercept+ (1 | CoupleID)),
+                  prior = c(prior(normal(0, 0.8), class = b, coef = Intercept), # prior on mean (log scale)
+                            prior(normal(1.5, 1), class = b, coef = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                 data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_phys_2",
+                  file_refit = "on_change"
+                  )
+
+like_sgm_2 <- brm(bf(CTS_sgm_perp_HR ~ 0 + Intercept + (1 | CoupleID),
+                   hu ~ 0 + Intercept + (1 | CoupleID)),
+                  prior = c(prior(normal(0, 0.8), class = b, coef = Intercept), # prior on mean (log scale)
+                            prior(normal(1.5, 1), class = b, coef = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_sgm_2",
+                  file_refit = "on_change"
+                  )
+```
+
+Now let's summarize & look at the posterior predictive checks for each model. Starting with psychological:
+
+```{r}
+summary(like_psych_2)
+```
+
+& PPC:
+```{r}
+pp_check(like_psych_2, ndraws = 100)
+```
+
+Physical:
+```{r}
+summary(like_phys_2)
+```
+
+& PPC:
+```{r}
+pp_check(like_phys_2, ndraws = 100)
+```
+
+SGM-specific:
+```{r}
+summary(like_sgm_2, ndraws = 100)
+```
+
+& PPC:
+```{r}
+pp_check(like_sgm_2, ndraws = 100)
+```
+
+Ok so we see here that the default prior is pretty ok for psych IPV, although that model did not sample super well. The default priors for physical and SGM-specific IPV, however, are pretty wild. Because of the introduction of the variability around the Intercept and hu_Intercept, the model estimates a WIDE range of values based on each couple. Because we're working on log scales here, that can escalate pretty quickly. For example, the physical IPV perp model has some plausible predicted mean rates of IPV in the 5000s. We'll need to think of a more restrictive prior (i.e. a regularizing one) for the standard deviation terms so these models don't get too out of hand with the limited data. 
+
+One rather weakly regularizing prior for standard deviation parameters is the Exponential(1) prior. Let's see what that looks like: 
+```{r}
+set.seed(1234)
+psim <- psim |> 
+  mutate(exp = rexp(1e4, 1)) 
+ggplot(psim, aes(x = exp)) + geom_histogram()
+```
+Here, we see that the expected values of the standard deviation around the intercept terms are in the lower end, with the majority of the probable values between 0 and 2. This is still a *very* permissive prior here b/c this is on the log scale. Let's see if we regularize that more substantially with the exponential(4).
+
+```{r}
+set.seed(1234)
+psim <- psim |> 
+  mutate(exp = rexp(1e4, 4)) 
+ggplot(psim, aes(x = exp)) + geom_histogram()
+```
+This places the majority of values below 1, but still allows for greater values here. Let's see what happens if we re-run these models with the more aggressive exponential(4) prior for the standard deviation terms. 
+
+
+```{r}
+like_psych_3 <- brm(bf(CTS_psych_perp_HR ~ 0 + Intercept + (1 | CoupleID),
+                     hu ~ 0 + Intercept+ (1 | CoupleID)),
+                  prior = c(prior(normal(1, 0.5), class = b, coef = Intercept), # prior on mean (log scale)
+                            prior(normal(-1.5, 1), class = b, coef = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(4), class = sd), # prior on couple variability
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                  data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_psych_3",
+                  file_refit = "on_change"
+                  )
+
+like_phys_3 <- brm(bf(CTS_phys_perp_HR ~ 0 + Intercept+ (1 | CoupleID),
+                     hu ~ 0 + Intercept+ (1 | CoupleID)),
+                  prior = c(prior(normal(0, 0.8), class = b, coef = Intercept), # prior on mean (log scale)
+                            prior(normal(1.5, 1), class = b, coef = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(4), class = sd), # prior on couple variability
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                 data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_phys_3",
+                  file_refit = "on_change"
+                  )
+
+like_sgm_3 <- brm(bf(CTS_sgm_perp_HR ~ 0 + Intercept + (1 | CoupleID),
+                   hu ~ 0 + Intercept + (1 | CoupleID)),
+                  prior = c(prior(normal(0, 0.8), class = b, coef = Intercept), # prior on mean (log scale)
+                            prior(normal(1.5, 1), class = b, coef = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(4), class = sd), # prior on couple variability
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_sgm_3",
+                  file_refit = "on_change"
+                  )
+```
+
+Now let's summarize & look at the posterior predictive checks for each model. Starting with psychological:
+
+```{r}
+summary(like_psych_3)
+```
+
+& PPC:
+```{r}
+pp_check(like_psych_3, ndraws = 100)
+```
+
+Physical:
+```{r}
+summary(like_phys_3)
+```
+
+& PPC:
+```{r}
+pp_check(like_phys_3, ndraws = 100)
+```
+
+SGM-specific:
+```{r}
+summary(like_sgm_3, ndraws = 100)
+```
+
+& PPC:
+```{r}
+pp_check(like_sgm_3, ndraws = 100)
+```
+
+We still see that it's not the most effective sampling for psychological IPV. We still have some pretty wild posterior predicted values for physical IPV (it just moved from the 5000s to the 2000s in terms of the range of the x-axis). SGM-specific IPV is also a lot better, but still a little bit beyond the range of the data. This could be due to the one more aggressive couple in the sample, however, the implausible values don't seem restricted to just physical IPV--we still get the same issue with SGM-specific IPV as well. This suggests that it's because of the limited variability in the data, so the model is rather uncertain as to the estimation of the couple-level variability in parameter estimates. This may be because so many couples have 0s there. 
+
+Because of this, I don't think it makes sense to move forward with modeling physical and SGM-specific IPV frequency b/c it's going to have limited utility and is going to be asking too much of the data. 
+
+So let's go ahead and re-run those models with binary (0/1) variables for the physical and SGM-specific IPV outcomes. Of note, let's go back to the normal exponential(1) prior on the intercept variability. It likely doesn't need to be as aggressive there. 
+
+```{r}
+like_phys_3.1 <- brm(bf(CTS_phys_perp_binary ~ 0 + Intercept+ (1 | CoupleID)),
+                  prior = c(prior(normal(1.5, 1), class = b, coef = Intercept), # prior on odds of being 0 (logit scale)
+                            prior(exponential(1), class = sd) # prior on couple variability
+                  ),
+                 data = data,
+                  family = bernoulli,
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_phys_3.1",
+                  file_refit = "on_change"
+                  )
+
+like_sgm_3.1 <- brm(bf(CTS_sgm_perp_binary ~ 0 + Intercept + (1 | CoupleID)),
+                  prior = c(prior(normal(1.5, 1), class = b, coef = Intercept), # prior on odds of being 0 (logit scale)
+                            prior(exponential(1), class = sd) # prior on couple variability
+                  ),
+                data = data,
+                  family = bernoulli,
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_sgm_3.1",
+                  file_refit = "on_change"
+                  )
+```
+
+Let's look at the output of these.
+
+Physical:
+```{r}
+summary(like_phys_3.1)
+```
+
+& PPC:
+```{r}
+pp_check(like_phys_3.1, ndraws = 100)
+```
+
+SGM-specific:
+```{r}
+summary(like_sgm_3.1)
+```
+
+& PPC:
+```{r}
+pp_check(like_sgm_3.1, ndraws = 100)
+```
+
+Those are MUCH better posterior predictives, so let's go ahead and work with those models. 
+
+Given this decision to use logistic regression for physical and SGM-specific IPV perpetration due to the limited number of couples who perpetrated IPV, I also made the decision to simplify the models for psychological aggression to negative binomial models. This decision is based on making the models more parsimonious and the fact that the *vast* majority of people in this sample perpetrated some psychological aggression, so the hu/zero part of the model is going to be based on only 14 people. This is even less than the amount of people who perpetrated physical or SGM-specific IPV, so it seems appropriate to follow the same logic that the parameter estimates for these portions of the model are going to be based on very limited information. It will also make interpretation easier in line with the physical and SGM-specific forms of perpetration b/c we will not have to switch between occurrence/non-occurrence language here. 
+
+### Internalized stigma slope priors
+
+Now that we have our basic, intercept-only model here, let's figure out some priors for the actor-partner interdependence model. 
+
+Small note b/c I'm not sure where else to put this: typically within a MLM for APIMs, you want to set up a compound symmetry correlation structure for the residual variance to allow for possible negative correlations between dyad scores. This is not possible within a GLM framework b/c there is no residual variance term given the different likelihood of the data that is used for these models. Thus, you have to make the assumption that ICCs are positive for the couple. In this study, this is a very fine assumption to make since IPV between partners is typically rather strongly, positively correlated. This may not be the case for other types of constructs though, so that's just a caveat of these models here. 
+
+Ok now back to the priors here. This gets really complicated/tricky because we are working on the log or log odds/logit scale, depending upon the portion of the model that we are estimating here. Here are some additional resources for making sense of this when you inevitably forget what you figured out when coming up with these priors: 
+
+- NEGATIVE logit regression coefficient means less likely to happen. 0 logit is 50/50 prob, above 0 is MORE likely to happen (from Nick's regression course) 
+
+- Conversion between odds, odds ratios, and probabilities can be done here: https://easystats.github.io/effectsize/articles/convert_p_OR_RR.html. 
+
+For example, if we have a logit of .04 (i.e., unstandardized regression cofficient), we can convert it to an odds ratio via this:
+```{r}
+# logit to odds ratio
+inv_logit_scaled(.04)/(1 - inv_logit_scaled(.04))
+```
+
+Similarly if we need to convert an odds ratio to logit, let's say we want to convert .95, then we can use this: 
+```{r}
+# odds ratio to logit
+log(.95)
+```
+
+If you need some type of annotated output for logistic regression (of MPlus) for looking at how this may have appeared in the Li et al. 2022 paper, you can find that here: https://stats.oarc.ucla.edu/mplus/output/logit-regression/. 
+
+SO, with all of that being put there for future you, let's go ahead and summarize some of the results from the prior literature. 
+
+*Li et al. 2022:*
+* Physical IPV occurrence: actor unstandardized coefficient of -.05 (OR = .95); partner unstandardized coefficient of -.07 (OR = .94) 
+* Psychological IPV occurrence: actor unstandardized coefficient of 1.07 (OR = 2.90); partner unstandardized coefficient of .82 (OR = 2.27)
+* Psychological IPV frequency: actor unstandardized coefficient of .92, partner unstandardized coefficient of .71
+
+*Do et al. 2021:*
+Note they say they have standardized regression coefficients but if you do the logit to odds ratio conversion it equals the ORs they report in their tables.
+
+* Physical IPV occurrence: actor coefficient of .19, se = .18 (OR = 1.22, [0.85, 1.72]); partner coefficient of .00, se = .19 (OR = 1.00, [0.69, 1.44])
+* Psych IPV occurrence (not severe vs. severe): actor coefficient of -.03, se = .14 (OR = 0.97, [0.74, 1.28]); partner coefficient of .08, se = .14 (OR = 1.08, 0.83, 1.41)
+
+*Badenes-Ribera et al. 2019 meta-analysis:*
+* Mean r = .15 for any type of IPV (also backed by Kimmes et al. 2019 meta that found r = .14 among sexual minority women and r = .23 among sexual minority men)
+
+That's all fine and dandy, but can we convert the correlation coefficient to an odds ratio? Turns out we can with the `easystats` package: 
+```{r}
+d <- r_to_d(0.15)
+d_to_oddsratio(d)
+```
+
+And we can also have it appear on the log scale, which makes it an unstandardized regression coefficient: 
+```{r}
+d_to_oddsratio(d, log = T)
+```
+
+Now that we have all of that background information, let's go ahead and make some sensible priors out of them.
+
+#### Psych & phys occurrence:
+
+- Li et al. have coefficient of 1.07, whereas Do et al have coefficient of -.03; meta-analysis would suggest inclusion of 0.55 in the range as well (see above conversion for where I got that). We want a distribution that could reflect ALL of these potential values here. A normal(0.5, 0.75) would contain all of these plausible values. It places the most weight on the estimate from the meta-analysis, but still incorporates values consistent with Do and with Li. 
+```{r}
+set.seed(1234)
+psim <- psim |> 
+  mutate(b_ihs_occur = rnorm(1e4, mean = 0.5, sd = 0.75))
+ggplot(psim, aes(x = b_ihs_occur)) + geom_histogram(binwidth = 0.1)
+```
+Probability that the coefficient is below 0:
+```{r}
+psim |> summarize(sum = sum(ifelse(b_ihs_occur < 0, T, F))/1e4)
+```
+Probabiliy that the coefficient is above 0.5 (mean from meta-analysis): 
+```{r}
+psim |> summarize(sum = sum(ifelse(b_ihs_occur > 0.5, T, F))/1e4)
+```
+#### Psych frequency
+
+Based on Li et al 2022 results, let's do mean of 0.80 (which is mean of .92 actor and .71 partner). We'll still allow for significant variability around that so it's possible to have negative values as well. 
+```{r}
+set.seed(1234)
+psim <- psim |> 
+  mutate(b_ihs_freq = rnorm(1e4, mean = 0.8, sd = 1))
+ggplot(psim, aes(x = b_ihs_freq)) + geom_histogram(binwidth = 0.1)
+```
+Proportion of distribution below 0: 
+```{r}
+psim |> summarize(sum = sum(ifelse(b_ihs_freq < 0, T, F))/1e4)
+```
+#### SGM-specific 
+
+This is the first study to look at internalized stigma and SGM-specific IPV, so let's keep this prior much more vague. Here's what we should do for occurrence instead of the more "positive" prior above: 
+
+```{r}
+set.seed(1234)
+psim <- psim |> 
+  mutate(b_ihs_occur = rnorm(1e4, mean = 0, sd = 0.5))
+ggplot(psim, aes(x = b_ihs_occur)) + geom_histogram(binwidth = 0.1)
+```
+
+Basically, it'll place the mass of probability around 0, and keep the range of possible coefficients reasonable but still letting the data inform the story here. 
+
+#### Important caveat
+
+One IMPORTANT thing to note about the priors above is that they are based on regression coefficients (IPV regressed on internalized stigma) that use a different scale than this study, and internalized stigma was not standardized in those studies. However, generally the zero-order correlations b/t internalized stigma and IPV perpetration ranged ~ .14 (with some variability in there depending on the study and whether it was psych or physical IPV). The priors above, which are based on the meta-analytic correlation of .14, thus contain these values. They are good enough for these purposes here. 
+
+### Negative affect
+
+Next up is reasoning through priors for negative affect scores. The examples will utilize just one of the negative affect variables (PANAS_disc_neg_actor) with the assumption that priors will be the same throughout all portions of the model (i.e., partner effect for discrimination, actor + partner effects for life stressor discussions). Remember that negative affect and internalized stigma are standardized in these analyses. 
+
+#### Internalized stigma & NA 
+
+```{r}
+like_na <- brm(PANAS_disc_neg_actor ~ 0 + Intercept + cosy(gr = CoupleID),
+              data = data,
+              family = gaussian(),
+              chains = 4, iter = 2000, warmup = 1000, cores = 4,
+              seed = 1234,
+              file = "fits/like_na",
+              file_refit = "on_change"
+)
+```
+
+Summarize:
+```{r}
+summary(like_na, prob = .89)
+```
+
+& PPC:
+```{r}
+pp_check(like_na, ndraws = 100)
+```
+
+Default priors are probably fine here. Note that the observed data has significant skew, which is why the model-implied values are not as cleanly estimated here. That's ok for now, and this is also how these data are mostly going to be esitmated. To keep with convention and to not make these models too wild, we're going to stick with a Gaussian likelihood for this study rather than introducing the skew_normal distribution into things. 
+
+Next, let's add in the actor & partner effects of internalized stigma with default priors. This is a "proper" actor-partner interdependence model here b/c we are able to specify a compound symmetry correlation structure here. 
+
+```{r}
+like_na_1 <- brm(PANAS_disc_neg_actor ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + cosy(gr = CoupleID),
+              data = data,
+              family = gaussian(),
+              chains = 4, iter = 2000, warmup = 1000, cores = 4,
+              seed = 1234,
+              file = "fits/like_na_1",
+              file_refit = "on_change"
+)
+```
+
+Summarize:
+```{r}
+summary(like_na_1, prob = .89)
+```
+
+& PPC: 
+```{r}
+pp_check(like_na_1, ndraws = 100)
+```
+
+That's all pretty good! At least for this specific mediator, we see evidence of a reliably positive actor effect, but not so much for the partner effect. Right now, these models are with the default priors. They're honestly probably pretty ok here in terms of nothing being too wild or off, but let's reason through some sensible priors here because it's quite possible this will matter when we move to the monster of the mediation model. 
+
+Let's get the summary of the default priors here: 
+```{r}
+prior_summary(like_na_1)
+```
+
+The compound symmetry prior SHOULD be a correlation that allows negative values, but apparently the cosy() terms are bounded to be positive in `brms` by default. There are more details about this issue here: https://github.com/paul-buerkner/brms/issues/878. For the purposes of this study given the size of the model and the relatively sparse data, it's best to just keep with these defaults. Testing out the implications of this and the programming in Stan is a little beyond my skillset at this point in time, and likely won't change inference for this study given that we do expect positive correlations for NA here between partners (not negative).
+
+First we have the overall Intercept. This should be close to 0 because we are working with standardized data here. It's possible it could fluctuate a bit, but it shouldn't be too wild. A normal(0, 0.25) prior will keep it pretty reasonable. 
+
+```{r}
+psim <- psim |> 
+  mutate(b_na = rnorm(1e4, mean = 0, sd = 0.25))
+ggplot(psim, aes(x = b_na)) + geom_histogram(binwidth = 0.1)
+```
+
+Finally, we have the actor and partner effects of internalized stigma on negative affect. There's no direct study out there that has tested this, to my knowledge, so we're going to rely on some broader correlations from prior research. Seager van Dyk et al. (2021) found a .3 correlation between internalized stigma and negative affect in their minority stress induction study, so let's consider a prior that generally points in a more positive direction but still very well includes 0. Of course, a regression model with more than one parameter in it isn't technically a correlation coefficient. However, we're very much in the ballpark here. This prior is also weakly informative enough that the data will probably dominate the posterior. 
+
+```{r}
+psim <- psim |> 
+  mutate(b_na_ihs = rnorm(1e4, mean = 0.15, sd = 0.3))
+ggplot(psim, aes(x = b_na_ihs)) + geom_histogram(binwidth = 0.1)
+```
+
+Proportion below zero:
+```{r}
+psim |> summarize(sum = sum(ifelse(b_na_ihs < 0, T, F))/1e4)
+```
+That seems pretty reasonable! Lots of chances to be near zero or at zero, but still has a more positive slant to it that is reflective of at least one prior study on this topic to inform the direction of effects here. 
+
+Because we don't really know what partner effects of internalized stigma on negative affect would be here, let's keep that prior a little more agnostic:
+```{r}
+psim <- psim |> 
+  mutate(b_na_ihs_partner = rnorm(1e4, mean = 0, sd = 0.3))
+ggplot(psim, aes(x = b_na_ihs_partner)) + geom_histogram(binwidth = 0.1)
+```
+
+Proportion below zero: 
+```{r}
+psim |> summarize(sum = sum(ifelse(b_na_ihs_partner < 0, T, F))/1e4)
+```
+Great! 
+
+Now with all of these priors in hand, let's re-run that model. We'll use the normal Exponential(1) prior for sigma in line with McElreath (2020) as a weakly informative prior for variance estimates.
+
+```{r}
+like_na_2 <- brm(PANAS_disc_neg_actor ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + cosy(gr = CoupleID),
+              prior = c(prior(normal(0, 0.25), class = b, coef = Intercept),
+                        prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor),
+                        prior(normal(0, 0.3), class = b, coef = IHS_mean_partner),
+                        prior(exponential(1), class = sigma)),
+                 data = data,
+              family = gaussian(),
+              chains = 4, iter = 2000, warmup = 1000, cores = 4,
+              seed = 1234,
+              file = "fits/like_na_2",
+              file_refit = "on_change"
+)
+```
+
+Summarize:
+```{r}
+summary(like_na_2, prob = .89)
+```
+
+We see here that the priors had very little influence on these parameter estimates, they're basically the same as before. However, this can probably help a lot in the bigger models! 
+
+#### NA & IPV perpetration
+
+Ok next up in building this out are the actor & partner effects of negative affect on IPV perpetration, which is entered in combination with the actor & partner effects of internalized stigma on IPV perpetration. We'll have to reason this out separately for psych + physical/SGM perpetration because these are on different scales (log vs. logit). 
+
+##### Physical/SGM 
+
+Now that we have all of that background information, let's go ahead and make some sensible priors out of them.
+
+This prior here is similar to the one we used for actor & partner effects for internalized stigma on IPV occurrence. This is based on a mean correlation of .25 from the Birkley & Eckhardt (2015) meta-analysis of emotion issues & IPV perpetration. This corresponds to a Cohen's d effect size of 0.51, which corresponds to an odds ratio of 2.55. On the logit scale, this would be a coefficient of about 0.94. We'd want this to be included in the regression coefficients.
+
+Let's verify that with the conversions from `easystats`:
+
+```{r}
+d <- r_to_d(0.25)
+d
+d_to_oddsratio(d)
+```
+
+And we can also have it appear on the log scale, which makes it an unstandardized regression coefficient: 
+```{r}
+d_to_oddsratio(d, log = T)
+```
+
+And then visualize that distribution:
+
+```{r}
+set.seed(1234)
+psim <- psim |> 
+  mutate(b_na_occur = rnorm(1e4, mean = 1, sd = 1))
+ggplot(psim, aes(x = b_na_occur)) + geom_histogram(binwidth = 0.1)
+```
+That seems good enough! It also allows for zero values to come up if they're present in the data: 
+
+```{r}
+psim |> summarize(sum = sum(ifelse(b_na_occur < 0, T, F))/1e4)
+```
+Of note, this is a little bit of a stronger prior than the one for internalized stigma (though not that dramatic) - I feel more comfortable with this given the body of work linking negative emotions to IPV perpetration is much bigger than the body of work linking internalized stigma to IPV perpetration. 
+
+##### Psychological
+
+Unfortunately, it's not super straight-forward how to convert a correlation of .25 to a negative binomial regression coefficient. Thus, let's go with a weakly informative prior approach that still skews in the positive direction. We utilized normal(0.5,0.75) for effects of internalized stigma on IPV perpetration based on coefficients from one prior study. The zero-order correlation between internalized stigma and IPV perp in that study (Li et al 2022) was .15. Here, let's use a wider range to capture potentially higher values. 
+
+```{r}
+set.seed(1234)
+psim <- psim |> 
+  mutate(b_na_freq = rnorm(1e4, mean = 0.5, sd = 1))
+ggplot(psim, aes(x = b_na_freq)) + geom_histogram(binwidth = 0.1)
+```
+
+### Covariates
+
+For priors involving covariates, I kept these to be relatively uninformative to let the data tell the story but still keep these parameter estimates within reasonable ranges. For covariates on negative affect scores (CSI, global dyadic coping, discussion order, stressor type, and stressor severity), priors were all normal(0,1) because the outcome was standardized. This is thus a pretty broad prior. For covariates on IPV perpetration (age, relationship length, sexual orientation, gender identity, and race/ethnicity), priors were all normal (0, 0.5).
+
+# Aim 1
+
+Now that we have our priors figured out, let's go ahead and run those first analyses for aim 1, which is an APIM of internalized stigma (standardized) predicting IPV. First, we'll run the models with no covariates. Then we'll run them with. Finally, we'll do a quick check to see if results are sensitive to our prior specification for both the no covariate and covariate adjusted models. 
+
+## No covariates
+
+First, let's run the models in a group batch here:
+
+```{r, warning = F}
+aim1_psych <- brm(bf(CTS_psych_perp_HR ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + (1 | CoupleID)),
+                  prior = c(# prior on mean (log scale)
+                            prior(normal(1, 0.5), class = b, coef = Intercept), 
+                            # priors for frequency
+                            prior(normal(0.8, 1), class = b, coef = IHS_mean_actor),
+                            prior(normal(0.8, 1), class = b, coef = IHS_mean_partner),
+                            # prior on couple variability
+                            prior(exponential(1), class = sd),
+                            # prior on dispersion parameter
+                            prior(exponential(1), class = shape) 
+                  ),
+                  data = data,
+                  family = negbinomial(),
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim1_psych",
+                  file_refit = "on_change"
+                  )
+
+aim1_phys <- brm(bf(CTS_phys_perp_binary ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + (1 | CoupleID)),
+                  prior = c(# prior on odds of being 1 (logit scale)
+                            prior(normal(1.5, 1), class = b, coef = Intercept), 
+                            # prior on regression relationship
+                            prior(normal(0.5, 0.75), class = b, coef = IHS_mean_actor),
+                            prior(normal(0.5, 0.75), class = b, coef = IHS_mean_partner), 
+                            # prior on couple variability
+                            prior(exponential(1), class = sd) 
+                  ),
+                 data = data,
+                  family = bernoulli,
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/aim1_phys",
+                  file_refit = "on_change"
+                  )
+
+aim1_sgm <- brm(bf(CTS_sgm_perp_binary ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + (1 | CoupleID)),
+                  prior = c(# prior on odds of being a 1 (logit scale)
+                            prior(normal(1.5, 1), class = b, coef = Intercept),
+                            # prior on regression relationship
+                            prior(normal(0, 0.5), class = b, coef = IHS_mean_actor),
+                            prior(normal(0, 0.5), class = b, coef = IHS_mean_partner), 
+                            # prior on couple variability
+                            prior(exponential(1), class = sd) 
+                  ),
+                data = data,
+                  family = bernoulli,
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/aim1_sgm",
+                  file_refit = "on_change"
+                  )
+```
+
+And the sections below are going to parse out those results in a little more detail. 
+
+### Psychological
+
+Summarize output: 
+```{r}
+summary(aim1_psych, prob = .89)
+```
+
+We see here that we have evidence of positive, reliable actor and partner effects of internalized stigma on the frequency of psychological IPV perpetration. 
+
+PPC:
+```{r}
+pp_check(aim1_psych, ndraws = 100)
+```
+
+We see here that the model does a pretty good job of generating predictiosn that look like our data. 
+
+
+### Physical
+
+Summary:
+
+```{r}
+summary(aim1_phys, prob = .89)
+```
+
+We see here that there's an estimated positive effect of actor and partner internalized stigma on the log odds of physical IPV pereptration. However, this effect is pretty variable and not reliably different from zero. 
+
+PPC:
+```{r}
+pp_check(aim1_phys, ndraws = 100)
+```
+
+We see here that the model does a pretty decent job of predicting probabilities of engaging in physical IPV. 
+
+### SGM-specific
+
+Summarize: 
+```{r}
+summary(aim1_sgm, prob = .89)
+```
+
+Here we see evidence of a positive, reliable partner internalized stigma effect on log odds of perpetrating SGM-related IPV. There's an estimated positive effect for actor internalized stigma as well, but this is not reliably ddifferent from zero. 
+
+PPC:
+```{r}
+pp_check(aim1_sgm, ndraws = 100)
+```
+
+Not a terrible job in predicting probabilities of engaging in aggression. 
+
+## Covariates
+
+Now let's run the models with our chosen covariates to evaluate whether accounting for their potential influence on both internalized stigma and IPV perpetration may change results. 
+
+Run all of the models here: 
+
+```{r, warning = F}
+aim1_psych_cov <- brm(bf(CTS_psych_perp_HR ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + Age + rel_length_yrs + sxlorx_dich + gender_three + race_dich + (1 | CoupleID)),
+                  prior = c(# prior on mean (log scale)
+                            prior(normal(1, 0.5), class = b, coef = Intercept), 
+                            # priors for frequency
+                            prior(normal(0.8, 1), class = b, coef = IHS_mean_actor),
+                            prior(normal(0.8, 1), class = b, coef = IHS_mean_partner),
+                            # priors for covariates
+                            prior(normal(0, 0.5), class = b, coef = Age),
+                            prior(normal(0, 0.5), class = b, coef = rel_length_yrs),
+                            prior(normal(0, 0.5), class = b, coef = sxlorx_dichBiP),
+                            prior(normal(0, 0.5), class = b, coef = gender_threeCisman),
+                            prior(normal(0, 0.5), class = b, coef = gender_threeGenderdiverse),
+                            prior(normal(0, 0.5), class = b, coef = race_dichBIPOC),
+                            # prior on couple variability
+                            prior(exponential(1), class = sd),
+                            # prior on dispersion parameter
+                            prior(exponential(1), class = shape) 
+                  ),
+                  data = data,
+                  family = negbinomial(),
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim1_psych_cov",
+                  file_refit = "on_change"
+                  )
+
+aim1_phys_cov <- brm(bf(CTS_phys_perp_binary ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + Age + rel_length_yrs + sxlorx_dich + gender_three + race_dich + (1 | CoupleID)),
+                  prior = c(# prior on odds of being 1 (logit scale)
+                            prior(normal(1.5, 1), class = b, coef = Intercept), 
+                            # prior on regression relationship
+                            prior(normal(0.5, 0.75), class = b, coef = IHS_mean_actor),
+                            prior(normal(0.5, 0.75), class = b, coef = IHS_mean_partner), 
+                            # priors for covariates
+                            prior(normal(0, 0.5), class = b, coef = Age),
+                            prior(normal(0, 0.5), class = b, coef = rel_length_yrs),
+                            prior(normal(0, 0.5), class = b, coef = sxlorx_dichBiP),
+                            prior(normal(0, 0.5), class = b, coef = gender_threeCisman),
+                            prior(normal(0, 0.5), class = b, coef = gender_threeGenderdiverse),
+                            prior(normal(0, 0.5), class = b, coef = race_dichBIPOC),
+                            # prior on couple variability
+                            prior(exponential(1), class = sd) 
+                  ),
+                 data = data,
+                  family = bernoulli,
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/aim1_phys_cov",
+                  file_refit = "on_change"
+                  )
+
+aim1_sgm_cov <- brm(bf(CTS_sgm_perp_binary ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + Age + rel_length_yrs + sxlorx_dich + gender_three + race_dich + (1 | CoupleID)),
+                  prior = c(# prior on odds of being a 1 (logit scale)
+                            prior(normal(1.5, 1), class = b, coef = Intercept),
+                            # prior on regression relationship
+                            prior(normal(0, 0.5), class = b, coef = IHS_mean_actor),
+                            prior(normal(0, 0.5), class = b, coef = IHS_mean_partner), 
+                            # priors for covariates
+                            prior(normal(0, 0.5), class = b, coef = Age),
+                            prior(normal(0, 0.5), class = b, coef = rel_length_yrs),
+                            prior(normal(0, 0.5), class = b, coef = sxlorx_dichBiP),
+                            prior(normal(0, 0.5), class = b, coef = gender_threeCisman),
+                            prior(normal(0, 0.5), class = b, coef = gender_threeGenderdiverse),
+                            prior(normal(0, 0.5), class = b, coef = race_dichBIPOC),
+                            # prior on couple variability
+                            prior(exponential(1), class = sd) 
+                  ),
+                data = data,
+                  family = bernoulli,
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/aim1_sgm_cov",
+                  file_refit = "on_change"
+                  )
+```
+
+Then, as before, we'll go ahead and inspect the results by each type of IPV.
+
+### Psychological 
+
+Summarize:
+```{r}
+summary(aim1_psych_cov, prob = .89)
+```
+Generally, covariates were not reliably related to psychological IPV perpetration with the exception of relationship length, which just barely passed over the 0 threshold. We also see that the estimates of the actor & partner effects are pretty similar, though they decrease slightly. 
+
+### Physical 
+
+Summarize:
+```{r}
+summary(aim1_phys_cov, prob = .89)
+```
+
+We see here the covariates aren't reliably different from 0, and the actor & partner effect estimates don't really change. 
+
+### SGM-specific
+
+Summarize:
+```{r}
+summary(aim1_sgm_cov, prob = .89)
+```
+
+Again, not much of a change. Interestingly being a person of color was more positively related to increased odds of using SGM-specific IPV--this was different from the other forms of IPV. Also relationship length was not as strongly related. 
+
+## Sensitivity to priors
+
+Let's see how sensitive those results are to the priors we set for the actor & partner effects. Let's first look at the models without covariates. 
+
+```{r, warning = F}
+aim1_psych_1 <- brm(bf(CTS_psych_perp_HR ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + (1 | CoupleID)),
+                  prior = c(# prior on mean (log scale)
+                            prior(normal(1, 0.5), class = b, coef = Intercept), 
+                            # prior on couple variability
+                            prior(exponential(1), class = sd),
+                            # prior on dispersion parameter
+                            prior(exponential(1), class = shape) 
+                  ),
+                  data = data,
+                  family = negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  file = "fits/aim1_psych_1",
+                  file_refit = "on_change"
+                  )
+
+aim1_phys_1 <- brm(bf(CTS_phys_perp_binary ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + (1 | CoupleID)),
+                  prior = c(# prior on odds of being 1 (logit scale)
+                            prior(normal(1.5, 1), class = b, coef = Intercept), 
+                            # prior on couple variability
+                            prior(exponential(1), class = sd) 
+                  ),
+                 data = data,
+                  family = bernoulli,
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/aim1_phys_1",
+                  file_refit = "on_change"
+                  )
+
+aim1_sgm_1 <- brm(bf(CTS_sgm_perp_binary ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + (1 | CoupleID)),
+                  prior = c(# prior on odds of being a 1 (logit scale)
+                            prior(normal(1.5, 1), class = b, coef = Intercept),
+                            # prior on couple variability
+                            prior(exponential(1), class = sd) 
+                  ),
+                data = data,
+                  family = bernoulli,
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/aim1_sgm_1",
+                  file_refit = "on_change"
+                  )
+```
+
+Summarize:
+
+```{r}
+summary(aim1_psych_1, prob = .89)
+
+summary(aim1_phys_1, prob = .89)
+
+summary(aim1_sgm_1, prob = .89)
+```
+
+Now let's look at the models with covariates:
+
+```{r, warning = F}
+aim1_psych_cov_1 <- brm(bf(CTS_psych_perp_HR ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + Age + rel_length_yrs + sxlorx_dich + gender_three + race_dich + (1 | CoupleID)),
+                  prior = c(# prior on mean (log scale)
+                            prior(normal(1, 0.5), class = b, coef = Intercept), 
+                            # prior on couple variability
+                            prior(exponential(1), class = sd),
+                            # prior on dispersion parameter
+                            prior(exponential(1), class = shape) 
+                  ),
+                  data = data,
+                  family = negbinomial(),
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim1_psych_cov_1",
+                  file_refit = "on_change"
+                  )
+
+aim1_phys_cov_1 <- brm(bf(CTS_phys_perp_binary ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + Age + rel_length_yrs + sxlorx_dich + gender_three + race_dich + (1 | CoupleID)),
+                  prior = c(# prior on odds of being 1 (logit scale)
+                            prior(normal(1.5, 1), class = b, coef = Intercept), 
+                            # prior on couple variability
+                            prior(exponential(1), class = sd) 
+                  ),
+                 data = data,
+                  family = bernoulli,
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/aim1_phys_cov_1",
+                  file_refit = "on_change"
+                  )
+
+aim1_sgm_cov_1 <- brm(bf(CTS_sgm_perp_binary ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + Age + rel_length_yrs + sxlorx_dich + gender_three + race_dich + (1 | CoupleID)),
+                  prior = c(# prior on odds of being a 1 (logit scale)
+                            prior(normal(1.5, 1), class = b, coef = Intercept),
+                            # prior on couple variability
+                            prior(exponential(1), class = sd) 
+                  ),
+                data = data,
+                  family = bernoulli,
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/aim1_sgm_cov_1",
+                  file_refit = "on_change"
+                  )
+```
+
+Summary:
+```{r}
+summary(aim1_psych_cov_1, prob = .89)
+
+summary(aim1_phys_cov_1, prob = .89)
+
+summary(aim1_sgm_cov_1, prob = .89)
+```
+
+Ok it looks like our models are not that sensitive to the priors we put on the regression relationships. If anything our priors downwardly bias the estimates there. 
+
+Of note, we do see that we start to get pretty wild/unlikely regression relationships for the physical & SGM-specific IPV models when we include covariates. Our priors keep things a lot more tame there, and importantly our choice of prior does not affect ssubstantive conclusions for any of the effects here (e.g., the partner internnalized stigma effect). 
+
+## Pulling results for reporting 
+
+Next we want to pull up the results in a way that makes it easy to report in tables. We're going to rely on the `tidybayes` package for this. 
+
+Let's do psych IPV:
+
+```{r, warning = F}
+aim1_draws <- as_draws_df(aim1_psych) |> 
+  # clean up dataframe
+  select(b1_Intercept = b_Intercept,
+         b2_Actor_IS = b_IHS_mean_actor,
+         b3_Partner_IS = b_IHS_mean_partner) |> 
+  # exponentiate to get IRR estimate
+  mutate(irr1_Intercept = exp(b1_Intercept),
+         irr2_Actor_IS = exp(b2_Actor_IS),
+         irr3_Partner_IS = exp(b3_Partner_IS)) 
+
+aim1_draws |> 
+  pivot_longer(b1_Intercept:irr3_Partner_IS) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+
+# first, let's get the unstandardized coefficients 
+
+unstd_psych_1 <- as_draws_df(aim1_psych) |> 
+  # isolate just the coefficients of interest
+  select(b1_Intercept = b_Intercept,
+         b2_Actor_IS = b_IHS_mean_actor,
+         b3_Partner_IS = b_IHS_mean_partner) |> 
+  # put in long format
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |>
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(psych_b_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+unstd_psych_1
+
+std_psych_1 <- as_draws_df(aim1_psych) |> 
+  # isolate just the coefficients of interest
+  select(b1_Intercept = b_Intercept,
+         b2_Actor_IS = b_IHS_mean_actor,
+         b3_Partner_IS = b_IHS_mean_partner) |> 
+  # exponentiate them - this step was added in
+  mutate(b1_Intercept = exp(b1_Intercept),
+         b2_Actor_IS = exp(b2_Actor_IS),
+         b3_Partner_IS = exp(b3_Partner_IS)) |> 
+  # put in long format
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |>
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(psych_irr_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+std_psych_1
+```
+
+Doing this with physical:
+```{r}
+# first, let's get the unstandardized coefficients 
+
+unstd_phys_1 <- as_draws_df(aim1_phys) |> 
+  # isolate just the coefficients of interest
+  select(b1_Intercept = b_Intercept,
+         b2_Actor_IS = b_IHS_mean_actor,
+         b3_Partner_IS = b_IHS_mean_partner) |> 
+  # put in long format
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |>
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(phys_b_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+unstd_phys_1
+
+std_phys_1 <- as_draws_df(aim1_phys) |> 
+  # isolate just the coefficients of interest
+  select(b1_Intercept = b_Intercept,
+         b2_Actor_IS = b_IHS_mean_actor,
+         b3_Partner_IS = b_IHS_mean_partner) |> 
+  # exponentiate them - this step was added in
+  mutate(b1_Intercept = exp(b1_Intercept),
+         b2_Actor_IS = exp(b2_Actor_IS),
+         b3_Partner_IS = exp(b3_Partner_IS)) |> 
+  # put in long format
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |>
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(phys_or_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+std_phys_1
+```
+
+SGM-specific:
+```{r}
+unstd_sgm_1 <- as_draws_df(aim1_sgm) |> 
+  # isolate just the coefficients of interest
+  select(b1_Intercept = b_Intercept,
+         b2_Actor_IS = b_IHS_mean_actor,
+         b3_Partner_IS = b_IHS_mean_partner) |> 
+  # put in long format
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |>
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(sgm_b_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+unstd_sgm_1
+
+std_sgm_1 <- as_draws_df(aim1_sgm) |> 
+  # isolate just the coefficients of interest
+  select(b1_Intercept = b_Intercept,
+         b2_Actor_IS = b_IHS_mean_actor,
+         b3_Partner_IS = b_IHS_mean_partner) |> 
+  # exponentiate them - this step was added in
+  mutate(b1_Intercept = exp(b1_Intercept),
+         b2_Actor_IS = exp(b2_Actor_IS),
+         b3_Partner_IS = exp(b3_Partner_IS)) |> 
+  # put in long format
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |>
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(sgm_or_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+std_sgm_1
+```
+
+Unite all of them together:
+```{r, message = F}
+aim1_no_cov <- unstd_psych_1 |> 
+  left_join(std_psych_1) |> 
+  left_join(unstd_phys_1) |> 
+  left_join(std_phys_1) |> 
+  left_join(unstd_sgm_1) |> 
+  left_join(std_sgm_1)
+aim1_no_cov
+```
+
+Now let's do the same process for the models with covariates:
+
+```{r}
+unstd_psych_1_cov <- as_draws_df(aim1_psych_cov) |> 
+  # isolate just the coefficients of interest
+  select(b1_Intercept = b_Intercept,
+         b2_Actor_IS = b_IHS_mean_actor,
+         b3_Partner_IS = b_IHS_mean_partner,
+         b4_age = b_Age,
+         b5_length = b_rel_length_yrs,
+         b6_sxlorx = b_sxlorx_dichBiP,
+         b7_cism = b_gender_threeCisman,
+         b8_gd = b_gender_threeGenderdiverse,
+         b9_poc = b_race_dichBIPOC) |> 
+  # put in long format
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |>
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(psych_b_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+unstd_psych_1_cov
+
+std_psych_1_cov <- as_draws_df(aim1_psych_cov) |> 
+  # isolate just the coefficients of interest
+  select(b1_Intercept = b_Intercept,
+         b2_Actor_IS = b_IHS_mean_actor,
+         b3_Partner_IS = b_IHS_mean_partner,
+         b4_age = b_Age,
+         b5_length = b_rel_length_yrs,
+         b6_sxlorx = b_sxlorx_dichBiP,
+         b7_cism = b_gender_threeCisman,
+         b8_gd = b_gender_threeGenderdiverse,
+         b9_poc = b_race_dichBIPOC) |> 
+  # exponentiate them - this step was added in
+  mutate(b1_Intercept = exp(b1_Intercept),
+         b2_Actor_IS = exp(b2_Actor_IS),
+         b3_Partner_IS = exp(b3_Partner_IS),
+         b4_age = exp(b4_age),
+         b5_length = exp(b5_length),
+         b6_sxlorx = exp(b6_sxlorx),
+         b7_cism = exp(b7_cism),
+         b8_gd = exp(b8_gd),
+         b9_poc = exp(b9_poc)) |> 
+  # put in long format
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |>
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(psych_irr_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+std_psych_1_cov
+```
+
+Physical:
+```{r}
+unstd_phys_1_cov <- as_draws_df(aim1_phys_cov) |> 
+  # isolate just the coefficients of interest
+  select(b1_Intercept = b_Intercept,
+         b2_Actor_IS = b_IHS_mean_actor,
+         b3_Partner_IS = b_IHS_mean_partner,
+         b4_age = b_Age,
+         b5_length = b_rel_length_yrs,
+         b6_sxlorx = b_sxlorx_dichBiP,
+         b7_cism = b_gender_threeCisman,
+         b8_gd = b_gender_threeGenderdiverse,
+         b9_poc = b_race_dichBIPOC) |> 
+  # put in long format
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |>
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(phys_b_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+unstd_phys_1_cov
+
+std_phys_1_cov <- as_draws_df(aim1_phys_cov) |> 
+  # isolate just the coefficients of interest
+  select(b1_Intercept = b_Intercept,
+         b2_Actor_IS = b_IHS_mean_actor,
+         b3_Partner_IS = b_IHS_mean_partner,
+         b4_age = b_Age,
+         b5_length = b_rel_length_yrs,
+         b6_sxlorx = b_sxlorx_dichBiP,
+         b7_cism = b_gender_threeCisman,
+         b8_gd = b_gender_threeGenderdiverse,
+         b9_poc = b_race_dichBIPOC) |> 
+  # exponentiate them - this step was added in
+  mutate(b1_Intercept = exp(b1_Intercept),
+         b2_Actor_IS = exp(b2_Actor_IS),
+         b3_Partner_IS = exp(b3_Partner_IS),
+         b4_age = exp(b4_age),
+         b5_length = exp(b5_length),
+         b6_sxlorx = exp(b6_sxlorx),
+         b7_cism = exp(b7_cism),
+         b8_gd = exp(b8_gd),
+         b9_poc = exp(b9_poc)) |> 
+  # put in long format
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |>
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(phys_or_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+std_phys_1_cov
+```
+
+SGM-specific:
+```{r}
+unstd_sgm_1_cov <- as_draws_df(aim1_sgm_cov) |> 
+  # isolate just the coefficients of interest
+  select(b1_Intercept = b_Intercept,
+         b2_Actor_IS = b_IHS_mean_actor,
+         b3_Partner_IS = b_IHS_mean_partner,
+         b4_age = b_Age,
+         b5_length = b_rel_length_yrs,
+         b6_sxlorx = b_sxlorx_dichBiP,
+         b7_cism = b_gender_threeCisman,
+         b8_gd = b_gender_threeGenderdiverse,
+         b9_poc = b_race_dichBIPOC) |> 
+  # put in long format
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |>
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(sgm_b_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+unstd_sgm_1_cov
+
+std_sgm_1_cov <- as_draws_df(aim1_sgm_cov) |> 
+  # isolate just the coefficients of interest
+  select(b1_Intercept = b_Intercept,
+         b2_Actor_IS = b_IHS_mean_actor,
+         b3_Partner_IS = b_IHS_mean_partner,
+         b4_age = b_Age,
+         b5_length = b_rel_length_yrs,
+         b6_sxlorx = b_sxlorx_dichBiP,
+         b7_cism = b_gender_threeCisman,
+         b8_gd = b_gender_threeGenderdiverse,
+         b9_poc = b_race_dichBIPOC) |> 
+  # exponentiate them - this step was added in
+  mutate(b1_Intercept = exp(b1_Intercept),
+         b2_Actor_IS = exp(b2_Actor_IS),
+         b3_Partner_IS = exp(b3_Partner_IS),
+         b4_age = exp(b4_age),
+         b5_length = exp(b5_length),
+         b6_sxlorx = exp(b6_sxlorx),
+         b7_cism = exp(b7_cism),
+         b8_gd = exp(b8_gd),
+         b9_poc = exp(b9_poc)) |> 
+  # put in long format
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |>
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(sgm_or_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+std_sgm_1_cov
+```
+
+Now combine models with covariates together:
+```{r}
+aim1_cov <- unstd_psych_1_cov |> 
+  left_join(std_psych_1_cov) |> 
+  left_join(unstd_phys_1_cov) |> 
+  left_join(std_phys_1_cov) |> 
+  left_join(unstd_sgm_1_cov) |> 
+  left_join(std_sgm_1_cov)
+aim1_cov
+```
+
+Finally combine all models together:
+```{r}
+aim1_output <- rbind(aim1_no_cov, aim1_cov)
+aim1_output
+```
+
+& save the output:
+```{r}
+write.csv(aim1_output, "output/aim1_output.csv")
+```
+
+# Aims 2/3
+
+Ok, now we test negative affect measured after stressor discussions as a mediator between internalized stigma and IPV perpetration. 
+
+We're going to be utilizing a parallel mediation approach for this. See Hayes (2022) Intro to Mediation, Moderation, and Conditional Process Analysis (3rd edition), chapter 5 specifically. Kurz has a brms translation for the second edition: https://bookdown.org/content/b472c7b3-ede5-40f0-9677-75c3704c7e5c/more-than-one-mediator.html#models-with-parallel-and-serial-mediation-properties. In an ideal world, it'd be possible to use a conditional process analysis to describe how indirect effects are moderated. Preliminary analyses though suggested that this would be pretty complicated to do in brms b/c our moderator of interest here (discussion type) is also a repeated measure. However, it does seem tenable to be able to use a parallel mediation approach. Furthermore, it'll still let us compare the strength & direction of the indirect effects so that's pretty nice. 
+
+As with Aim 1, we'll do two versions: one with covariates, one without covariates. Of note, we aren't going to do any sensitivity analyses with the prior specifications b/c we have already done this in the code above (for the direct effect model and when testing out the prior specifications for the negative affect portions of the models). 
+
+## No covariates 
+
+Following along with Kurz, we'll go ahead and separate out the different portions of the mediation model into different lists so we can put them all together in the main model code (below). 
+
+Setting up the models: 
+```{r}
+m1_actor <- bf(PANAS_disc_neg_actor ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + cosy(gr = CoupleID), family = "gaussian")
+m1_partner <- bf(PANAS_disc_neg_partner ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + cosy(gr = CoupleID), family = "gaussian")
+m2_actor <- bf(PANAS_life_neg_actor ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + cosy(gr = CoupleID), family = "gaussian")
+m2_partner <- bf(PANAS_life_neg_partner ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + cosy(gr = CoupleID), family = "gaussian")
+
+y_mod_psych <- bf(CTS_psych_perp_HR ~ 0 + Intercept + 
+                    IHS_mean_actor + IHS_mean_partner + 
+                    PANAS_disc_neg_actor + PANAS_disc_neg_partner +
+                    PANAS_life_neg_actor + PANAS_life_neg_partner +
+                    (1 | CoupleID), family = "negbinomial")
+
+y_mod_phys <- bf(CTS_phys_perp_binary ~ 0 + Intercept + 
+                    IHS_mean_actor + IHS_mean_partner + 
+                    PANAS_disc_neg_actor + PANAS_disc_neg_partner +
+                    PANAS_life_neg_actor + PANAS_life_neg_partner +
+                    (1 | CoupleID), family = "bernoulli")
+
+y_mod_sgm <- bf(CTS_sgm_perp_binary ~ 0 + Intercept + 
+                    IHS_mean_actor + IHS_mean_partner + 
+                    PANAS_disc_neg_actor + PANAS_disc_neg_partner +
+                    PANAS_life_neg_actor + PANAS_life_neg_partner +
+                    (1 | CoupleID), family = "bernoulli")
+
+```
+
+### Psychological
+
+Set the priors: 
+```{r}
+psych_prior <- c(
+## IPV PERPETRATION
+  # prior on mean (log scale)
+  prior(normal(1, 0.5), class = b, coef = Intercept, resp = CTSpsychperpHR), 
+  # priors for frequency
+  prior(normal(0.8, 1), class = b, coef = IHS_mean_actor, resp = CTSpsychperpHR),
+  prior(normal(0.8, 1), class = b, coef = IHS_mean_partner, resp = CTSpsychperpHR),
+  # priors for negative affect predicting IPV
+  prior(normal(0.5, 1), class = b, coef = PANAS_disc_neg_actor, resp = CTSpsychperpHR),
+  prior(normal(0.5, 1), class = b, coef = PANAS_disc_neg_partner, resp = CTSpsychperpHR),
+  prior(normal(0.5, 1), class = b, coef = PANAS_life_neg_actor, resp = CTSpsychperpHR),
+  prior(normal(0.5, 1), class = b, coef = PANAS_life_neg_partner, resp = CTSpsychperpHR),
+  # prior on couple variability
+  prior(exponential(1), class = sd, resp = CTSpsychperpHR),
+  # prior on dispersion parameter
+  prior(exponential(1), class = shape, resp = CTSpsychperpHR),
+
+## NEGATIVE AFFECT
+  # prior for mean NA
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegpartner),
+  # priors for internalized stigma predicting negative affect
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegactor), 
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegpartner),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegactor),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegactor), 
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegactor),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegpartner),
+  # priors for sigma (negative affect)
+  prior(exponential(1), class = sigma, resp = PANASdiscnegactor),
+  prior(exponential(1), class = sigma, resp = PANASdiscnegpartner),
+  prior(exponential(1), class = sigma, resp = PANASlifenegactor),
+  prior(exponential(1), class = sigma, resp = PANASlifenegpartner)
+)
+```
+
+Run the model:
+```{r, warning = F}
+aim3_psych <- brm(m1_actor + m1_partner + m2_actor + m2_partner + y_mod_psych + set_rescor(rescor = F),
+                  prior = psych_prior,
+                  data = data,
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim3_psych",
+                  file_refit = "on_change")
+```
+
+Check it out:
+```{r}
+summary(aim3_psych, prob = .89)
+```
+
+Calculate indirect effects via the product-of-coefficients approach:
+
+```{r}
+psych_draws <- as_draws_df(aim3_psych)
+
+psych_draws <- psych_draws |> 
+  # first, rename variables to be consistent with a, b, and c frameworks 
+  mutate(a1 = b_PANASdiscnegactor_IHS_mean_actor,
+         a2 = b_PANASdiscnegpartner_IHS_mean_actor,
+         a3 = b_PANASdiscnegactor_IHS_mean_partner,
+         a4 = b_PANASdiscnegpartner_IHS_mean_partner,
+         b1 = b_CTSpsychperpHR_PANAS_disc_neg_actor,
+         b2 = b_CTSpsychperpHR_PANAS_disc_neg_partner,
+         
+         a5 = b_PANASlifenegactor_IHS_mean_actor,
+         a6 = b_PANASlifenegpartner_IHS_mean_actor,
+         a7 = b_PANASlifenegactor_IHS_mean_partner,
+         a8 = b_PANASlifenegpartner_IHS_mean_partner,
+         b3 = b_CTSpsychperpHR_PANAS_life_neg_actor,
+         b4 = b_CTSpsychperpHR_PANAS_life_neg_partner,
+         
+         c_prime1 = b_CTSpsychperpHR_IHS_mean_actor,
+         c_prime2 = b_CTSpsychperpHR_IHS_mean_partner
+         ) |> 
+  mutate(a1b1 = a1 * b1,
+         a2b2 = a2 * b2,
+         a3b1 = a3 * b1,
+         a4b2 = a4 * b2,
+         
+         a5b3 = a5 * b3,
+         a6b4 = a6 * b4,
+         a7b3 = a7 * b3,
+         a8b4 = a8 * b4)
+```
+
+
+Next, we'll summarize those indirect effects:
+```{r, warning = F}
+psych_draws |> 
+  select(a1b1:a8b4) |> 
+  pivot_longer(a1b1:a8b4) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+
+We see two indirect effects that are reliably different from zero: a5b3 (actor IS --> actor NA post life stressor discussion --> psych IPV) and a8b4 (partner IS --> partner NA post life stressor discussion --> psych IPV). For Aim 3, we'll calculate the difference in the size of those indirect effects to see if they are different from the discrimination stressor discussion. 
+
+One important thing here is that the two indirect effects that are being compared here are DIFFERENT IN SIGN. Following recommendations from Hayes (2022), we'll calculate the difference between the absolute values of the indirect effect estimates so we can evaluate whether they differ in strength. 
+
+```{r, warning = F}
+psych_draws <- psych_draws |> 
+  mutate(comp1 = abs(a5b3) - abs(a1b1),
+         comp2 = abs(a8b4) - abs(a4b2))
+
+psych_draws |> 
+  select(comp1:comp2) |> 
+  pivot_longer(comp1:comp2) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+We see here that these contrasts are not reliably different from zero, which means that the strength of association in the two indirect pathways may overlap substantially. 
+
+### Physical
+
+Set the priors:
+```{r}
+phys_prior <- c(
+## IPV PERPETRATION
+  # prior on Intercept (logit scale)
+  prior(normal(1.5, 1), class = b, coef = Intercept, resp = CTSphysperpbinary), 
+  # prior on internalized stigma predicting IPV 
+  prior(normal(0.5, 0.75), class = b, coef = IHS_mean_actor, resp = CTSphysperpbinary),
+  prior(normal(0.5, 0.75), class = b, coef = IHS_mean_partner, resp = CTSphysperpbinary), 
+  # prior on couple variability
+  prior(exponential(1), class = sd, resp = CTSphysperpbinary),
+  
+  # priors for negative affect predicting IPV
+  prior(normal(1, 1), class = b, coef = PANAS_disc_neg_actor, resp = CTSphysperpbinary),
+  prior(normal(1, 1), class = b, coef = PANAS_disc_neg_partner, resp = CTSphysperpbinary),
+  prior(normal(1, 1), class = b, coef = PANAS_life_neg_actor, resp = CTSphysperpbinary),
+  prior(normal(1, 1), class = b, coef = PANAS_life_neg_partner, resp = CTSphysperpbinary),
+  
+## NEGATIVE AFFECT
+  # prior for mean NA
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegpartner),
+  # priors for internalized stigma predicting negative affect
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegactor), 
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegpartner),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegactor),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegactor), 
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegactor),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegpartner),
+  # priors for sigma (negative affect)
+  prior(exponential(1), class = sigma, resp = PANASdiscnegactor),
+  prior(exponential(1), class = sigma, resp = PANASdiscnegpartner),
+  prior(exponential(1), class = sigma, resp = PANASlifenegactor),
+  prior(exponential(1), class = sigma, resp = PANASlifenegpartner)
+)
+```
+
+Run the model:
+```{r, warning = F}
+aim3_phys <- brm(m1_actor + m1_partner + m2_actor + m2_partner + y_mod_phys + set_rescor(rescor = F),
+                 prior = phys_prior,
+                 data = data,
+                 chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                 seed = 1234,
+                 file = "fits/aim3_phys",
+                 file_refit = "on_change")
+```
+
+Summarize:
+```{r}
+summary(aim3_phys, prob = .89)
+```
+
+Now let's calculate the indirect effects:
+
+```{r}
+phys_draws <- as_draws_df(aim3_phys)
+
+phys_draws <- phys_draws |> 
+  mutate(a1 = b_PANASdiscnegactor_IHS_mean_actor,
+         a2 = b_PANASdiscnegpartner_IHS_mean_actor,
+         a3 = b_PANASdiscnegactor_IHS_mean_partner,
+         a4 = b_PANASdiscnegpartner_IHS_mean_partner,
+         b1 = b_CTSphysperpbinary_PANAS_disc_neg_actor,
+         b2 = b_CTSphysperpbinary_PANAS_disc_neg_partner,
+         
+         a5 = b_PANASlifenegactor_IHS_mean_actor,
+         a6 = b_PANASlifenegpartner_IHS_mean_actor,
+         a7 = b_PANASlifenegactor_IHS_mean_partner,
+         a8 = b_PANASlifenegpartner_IHS_mean_partner,
+         b3 = b_CTSphysperpbinary_PANAS_life_neg_actor,
+         b4 = b_CTSphysperpbinary_PANAS_life_neg_partner,
+         
+         c_prime1 = b_CTSphysperpbinary_IHS_mean_actor,
+         c_prime2 = b_CTSphysperpbinary_IHS_mean_partner
+         ) |> 
+  mutate(a1b1 = a1 * b1,
+         a2b2 = a2 * b2,
+         a3b1 = a3 * b1,
+         a4b2 = a4 * b2,
+         
+         a5b3 = a5 * b3,
+         a6b4 = a6 * b4,
+         a7b3 = a7 * b3,
+         a8b4 = a8 * b4)
+```
+
+And summarize them:
+```{r, warning = F}
+phys_draws |> 
+  select(a1b1:a8b4) |> 
+  pivot_longer(a1b1:a8b4) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+
+We see here that none of them are reliably different from zero. 
+
+### SGM-specific
+
+Set the priors: 
+```{r}
+sgm_prior <- c(
+## IPV PERPETRATION
+  # prior on Intercept (logit scale)
+  prior(normal(1.5, 1), class = b, coef = Intercept, resp = CTSsgmperpbinary), 
+  # prior on internalized stigma predicting IPV 
+  prior(normal(0, 0.5), class = b, coef = IHS_mean_actor, resp = CTSsgmperpbinary),
+  prior(normal(0, 0.5), class = b, coef = IHS_mean_partner, resp = CTSsgmperpbinary), 
+  # prior on couple variability
+  prior(exponential(1), class = sd, resp = CTSsgmperpbinary),
+  
+  # priors for negative affect predicting IPV
+  prior(normal(1, 1), class = b, coef = PANAS_disc_neg_actor, resp = CTSsgmperpbinary),
+  prior(normal(1, 1), class = b, coef = PANAS_disc_neg_partner, resp = CTSsgmperpbinary),
+  prior(normal(1, 1), class = b, coef = PANAS_life_neg_actor, resp = CTSsgmperpbinary),
+  prior(normal(1, 1), class = b, coef = PANAS_life_neg_partner, resp = CTSsgmperpbinary),
+  
+## NEGATIVE AFFECT
+  # prior for mean NA
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegpartner),
+  # priors for internalized stigma predicting negative affect
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegactor), 
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegpartner),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegactor),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegactor), 
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegactor),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegpartner),
+  # priors for sigma (negative affect)
+  prior(exponential(1), class = sigma, resp = PANASdiscnegactor),
+  prior(exponential(1), class = sigma, resp = PANASdiscnegpartner),
+  prior(exponential(1), class = sigma, resp = PANASlifenegactor),
+  prior(exponential(1), class = sigma, resp = PANASlifenegpartner)
+)
+```
+
+Run the model: 
+```{r, warning = F}
+aim3_sgm <- brm(m1_actor + m1_partner + m2_actor + m2_partner + y_mod_sgm + set_rescor(rescor = F),
+                prior = sgm_prior,
+                data = data,
+                chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                seed = 1234,
+                control = list(adapt_delta = .9),
+                file = "fits/aim3_sgm",
+                file_refit = "on_change")
+```
+
+Summarize:
+```{r}
+summary(aim3_sgm, prob = .89)
+```
+
+Calculate the indirect effects:
+
+```{r}
+sgm_draws <- as_draws_df(aim3_sgm)
+
+sgm_draws <- sgm_draws |> 
+  mutate(a1 = b_PANASdiscnegactor_IHS_mean_actor,
+         a2 = b_PANASdiscnegpartner_IHS_mean_actor,
+         a3 = b_PANASdiscnegactor_IHS_mean_partner,
+         a4 = b_PANASdiscnegpartner_IHS_mean_partner,
+         b1 = b_CTSsgmperpbinary_PANAS_disc_neg_actor,
+         b2 = b_CTSsgmperpbinary_PANAS_disc_neg_partner,
+         
+         a5 = b_PANASlifenegactor_IHS_mean_actor,
+         a6 = b_PANASlifenegpartner_IHS_mean_actor,
+         a7 = b_PANASlifenegactor_IHS_mean_partner,
+         a8 = b_PANASlifenegpartner_IHS_mean_partner,
+         b3 = b_CTSsgmperpbinary_PANAS_life_neg_actor,
+         b4 = b_CTSsgmperpbinary_PANAS_life_neg_partner,
+         
+         c_prime1 = b_CTSsgmperpbinary_IHS_mean_actor,
+         c_prime2 = b_CTSsgmperpbinary_IHS_mean_partner
+         ) |> 
+  mutate(a1b1 = a1 * b1,
+         a2b2 = a2 * b2,
+         a3b1 = a3 * b1,
+         a4b2 = a4 * b2,
+         
+         a5b3 = a5 * b3,
+         a6b4 = a6 * b4,
+         a7b3 = a7 * b3,
+         a8b4 = a8 * b4)
+```
+
+Summarize the indirect effects:
+
+```{r, warning = F}
+sgm_draws |> 
+  select(a1b1:a8b4) |> 
+  pivot_longer(a1b1:a8b4) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+
+We see here that one of these effects (partner IS --> partner neg affect after discrimination discussion --> SGM IPV perpetration) is reliably different from zero. Let's see if this is significantly different in strength from the adjacent pathway via post-life stressor discussion affect. 
+
+```{r, warning = F}
+sgm_draws <- sgm_draws |> 
+  mutate(comp = abs(a4b2) - abs(a8b4))
+
+sgm_draws |> 
+  select(comp) |> 
+  pivot_longer(comp) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+There's a relatively wide range here, and the difference is not reliably different from zero. 
+
+## Covariates
+
+Set up the models: 
+```{r}
+m1_actor_cov <- bf(PANAS_disc_neg_actor ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + CSI_sum + GlobalCoping_rc_disc + DiscussionOrder + stressor_type_rc_disc + DiscrimTopic_sev + cosy(gr = CoupleID), family = "gaussian")
+m1_partner_cov <- bf(PANAS_disc_neg_partner ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + CSI_sum + GlobalCoping_rc_disc + DiscussionOrder + stressor_type_rc_disc + DiscrimTopic_sev + cosy(gr = CoupleID), family = "gaussian")
+m2_actor_cov <- bf(PANAS_life_neg_actor ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + CSI_sum + GlobalCoping_rc_life + DiscussionOrder + stressor_type_rc_life + StressorTopic_sev + cosy(gr = CoupleID), family = "gaussian")
+m2_partner_cov <- bf(PANAS_life_neg_partner ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + CSI_sum + GlobalCoping_rc_life + DiscussionOrder + stressor_type_rc_life + StressorTopic_sev + cosy(gr = CoupleID), family = "gaussian")
+
+y_mod_psych_cov <- bf(CTS_psych_perp_HR ~ 0 + Intercept + 
+                    IHS_mean_actor + IHS_mean_partner + 
+                    PANAS_disc_neg_actor + PANAS_disc_neg_partner +
+                    PANAS_life_neg_actor + PANAS_life_neg_partner +
+                    Age + rel_length_yrs + sxlorx_dich + gender_three + race_dich + 
+                    (1 | CoupleID), family = "negbinomial")
+
+y_mod_phys_cov <- bf(CTS_phys_perp_binary ~ 0 + Intercept + 
+                    IHS_mean_actor + IHS_mean_partner + 
+                    PANAS_disc_neg_actor + PANAS_disc_neg_partner +
+                    PANAS_life_neg_actor + PANAS_life_neg_partner +
+                    Age + rel_length_yrs + sxlorx_dich + gender_three + race_dich +
+                    (1 | CoupleID), family = "bernoulli")
+
+y_mod_sgm_cov <- bf(CTS_sgm_perp_binary ~ 0 + Intercept + 
+                    IHS_mean_actor + IHS_mean_partner + 
+                    PANAS_disc_neg_actor + PANAS_disc_neg_partner +
+                    PANAS_life_neg_actor + PANAS_life_neg_partner +
+                    Age + rel_length_yrs + sxlorx_dich + gender_three + race_dich +
+                    (1 | CoupleID), family = "bernoulli")
+
+```
+
+
+### Psychological
+
+Set the priors:
+```{r}
+psych_prior_cov <- c(
+## IPV PERPETRATION
+  # prior on mean (log scale)
+  prior(normal(1, 0.5), class = b, coef = Intercept, resp = CTSpsychperpHR), 
+  # priors for frequency
+  prior(normal(0.8, 1), class = b, coef = IHS_mean_actor, resp = CTSpsychperpHR),
+  prior(normal(0.8, 1), class = b, coef = IHS_mean_partner, resp = CTSpsychperpHR),
+  # priors for negative affect predicting IPV
+  prior(normal(0.5, 1), class = b, coef = PANAS_disc_neg_actor, resp = CTSpsychperpHR),
+  prior(normal(0.5, 1), class = b, coef = PANAS_disc_neg_partner, resp = CTSpsychperpHR),
+  prior(normal(0.5, 1), class = b, coef = PANAS_life_neg_actor, resp = CTSpsychperpHR),
+  prior(normal(0.5, 1), class = b, coef = PANAS_life_neg_partner, resp = CTSpsychperpHR),
+  # prior on couple variability
+  prior(exponential(1), class = sd, resp = CTSpsychperpHR),
+  # prior on dispersion parameter
+  prior(exponential(1), class = shape, resp = CTSpsychperpHR),
+  # priors for covariates
+  prior(normal(0, 0.5), class = b, coef = Age, resp = CTSpsychperpHR),
+  prior(normal(0, 0.5), class = b, coef = rel_length_yrs, resp = CTSpsychperpHR),
+  prior(normal(0, 0.5), class = b, coef = sxlorx_dichBiP, resp = CTSpsychperpHR),
+  prior(normal(0, 0.5), class = b, coef = gender_threeCisman, resp = CTSpsychperpHR),
+  prior(normal(0, 0.5), class = b, coef = gender_threeGenderdiverse, resp = CTSpsychperpHR),
+  prior(normal(0, 0.5), class = b, coef = race_dichBIPOC, resp = CTSpsychperpHR),
+
+## NEGATIVE AFFECT
+  # prior for mean NA
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegpartner),
+  # priors for internalized stigma predicting negative affect
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegactor), 
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegpartner),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegactor),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegactor), 
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegactor),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegpartner),
+  # priors for sigma (negative affect)
+  prior(exponential(1), class = sigma, resp = PANASdiscnegactor),
+  prior(exponential(1), class = sigma, resp = PANASdiscnegpartner),
+  prior(exponential(1), class = sigma, resp = PANASlifenegactor),
+  prior(exponential(1), class = sigma, resp = PANASlifenegpartner),
+  # priors for covariates 
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_disc, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_discJointstressor, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_sev, resp = PANASdiscnegactor),
+  
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_disc, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_discJointstressor, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_sev, resp = PANASdiscnegpartner),
+  
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_life, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_lifeJointstressor, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegactor),
+  
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_life, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_lifeJointstressor, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegpartner)
+)
+```
+
+Run the model:
+```{r, warning = F}
+aim3_psych_cov <- brm(m1_actor_cov + m1_partner_cov + m2_actor_cov + m2_partner_cov + y_mod_psych_cov + set_rescor(rescor = F),
+                  prior = psych_prior_cov,
+                  data = data,
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim3_psych_cov",
+                  file_refit = "on_change")
+```
+
+Summarize:
+```{r}
+summary(aim3_psych_cov, prob = .89)
+```
+
+Calculate indirect effects:
+
+```{r}
+psych_cov_draws <- as_draws_df(aim3_psych_cov)
+
+psych_cov_draws <- psych_cov_draws |> 
+  mutate(a1 = b_PANASdiscnegactor_IHS_mean_actor,
+         a2 = b_PANASdiscnegpartner_IHS_mean_actor,
+         a3 = b_PANASdiscnegactor_IHS_mean_partner,
+         a4 = b_PANASdiscnegpartner_IHS_mean_partner,
+         b1 = b_CTSpsychperpHR_PANAS_disc_neg_actor,
+         b2 = b_CTSpsychperpHR_PANAS_disc_neg_partner,
+         
+         a5 = b_PANASlifenegactor_IHS_mean_actor,
+         a6 = b_PANASlifenegpartner_IHS_mean_actor,
+         a7 = b_PANASlifenegactor_IHS_mean_partner,
+         a8 = b_PANASlifenegpartner_IHS_mean_partner,
+         b3 = b_CTSpsychperpHR_PANAS_life_neg_actor,
+         b4 = b_CTSpsychperpHR_PANAS_life_neg_partner,
+         
+         c_prime1 = b_CTSpsychperpHR_IHS_mean_actor,
+         c_prime2 = b_CTSpsychperpHR_IHS_mean_partner
+         ) |> 
+  mutate(a1b1 = a1 * b1,
+         a2b2 = a2 * b2,
+         a3b1 = a3 * b1,
+         a4b2 = a4 * b2,
+         
+         a5b3 = a5 * b3,
+         a6b4 = a6 * b4,
+         a7b3 = a7 * b3,
+         a8b4 = a8 * b4)
+```
+
+Summarize indirect effect output:
+```{r, warning = F}
+psych_cov_draws |> 
+  select(a1b1:a8b4) |> 
+  pivot_longer(a1b1:a8b4) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+
+We see here now that none of the indirect effects were reliably different from zero. This could potentially be because we included dyadic coping as a covariate, which be a mediator along the pathway from internalized stigma --> negative affect after life stressor discususions --> psychological IPV perpetration. This is because these indirect effects are no longer reliably different from zero when we include it in models. 
+
+### Physical
+
+Set up the priors: 
+```{r}
+phys_prior_cov <- c(
+## IPV PERPETRATION
+  # prior on Intercept (logit scale)
+  prior(normal(1.5, 1), class = b, coef = Intercept, resp = CTSphysperpbinary), 
+  # prior on internalized stigma predicting IPV 
+  prior(normal(0.5, 0.75), class = b, coef = IHS_mean_actor, resp = CTSphysperpbinary),
+  prior(normal(0.5, 0.75), class = b, coef = IHS_mean_partner, resp = CTSphysperpbinary), 
+  # prior on couple variability
+  prior(exponential(1), class = sd, resp = CTSphysperpbinary),
+  
+  # priors for negative affect predicting IPV
+  prior(normal(1, 1), class = b, coef = PANAS_disc_neg_actor, resp = CTSphysperpbinary),
+  prior(normal(1, 1), class = b, coef = PANAS_disc_neg_partner, resp = CTSphysperpbinary),
+  prior(normal(1, 1), class = b, coef = PANAS_life_neg_actor, resp = CTSphysperpbinary),
+  prior(normal(1, 1), class = b, coef = PANAS_life_neg_partner, resp = CTSphysperpbinary),
+  # priors for covariates
+  prior(normal(0, 0.5), class = b, coef = Age, resp = CTSphysperpbinary),
+  prior(normal(0, 0.5), class = b, coef = rel_length_yrs, resp = CTSphysperpbinary),
+  prior(normal(0, 0.5), class = b, coef = sxlorx_dichBiP, resp = CTSphysperpbinary),
+  prior(normal(0, 0.5), class = b, coef = gender_threeCisman, resp = CTSphysperpbinary),
+  prior(normal(0, 0.5), class = b, coef = gender_threeGenderdiverse, resp = CTSphysperpbinary),
+  prior(normal(0, 0.5), class = b, coef = race_dichBIPOC, resp = CTSphysperpbinary),
+  
+## NEGATIVE AFFECT
+  # prior for mean NA
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegpartner),
+  # priors for internalized stigma predicting negative affect
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegactor), 
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegpartner),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegactor),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegactor), 
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegactor),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegpartner),
+  # priors for sigma (negative affect)
+  prior(exponential(1), class = sigma, resp = PANASdiscnegactor),
+  prior(exponential(1), class = sigma, resp = PANASdiscnegpartner),
+  prior(exponential(1), class = sigma, resp = PANASlifenegactor),
+  prior(exponential(1), class = sigma, resp = PANASlifenegpartner),
+
+  # priors for covariates 
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_disc, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_discJointstressor, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_sev, resp = PANASdiscnegactor),
+  
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_disc, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_discJointstressor, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_sev, resp = PANASdiscnegpartner),
+  
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_life, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_lifeJointstressor, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegactor),
+  
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_life, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_lifeJointstressor, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegpartner)
+)
+```
+
+Run the model:
+```{r, warning = F}
+aim3_phys_cov <- brm(m1_actor_cov + m1_partner_cov + m2_actor_cov + m2_partner_cov + y_mod_phys_cov + set_rescor(rescor = F),
+                 prior = phys_prior_cov,
+                 data = data,
+                 chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                 seed = 1234,
+                 file = "fits/aim3_phys_cov",
+                 file_refit = "on_change")
+```
+
+Summarize:
+```{r}
+summary(aim3_phys_cov, prob = .89)
+```
+
+Calculate indirect effects:
+
+```{r}
+phys_cov_draws <- as_draws_df(aim3_phys_cov)
+
+phys_cov_draws <- phys_cov_draws |> 
+  mutate(a1 = b_PANASdiscnegactor_IHS_mean_actor,
+         a2 = b_PANASdiscnegpartner_IHS_mean_actor,
+         a3 = b_PANASdiscnegactor_IHS_mean_partner,
+         a4 = b_PANASdiscnegpartner_IHS_mean_partner,
+         b1 = b_CTSphysperpbinary_PANAS_disc_neg_actor,
+         b2 = b_CTSphysperpbinary_PANAS_disc_neg_partner,
+         
+         a5 = b_PANASlifenegactor_IHS_mean_actor,
+         a6 = b_PANASlifenegpartner_IHS_mean_actor,
+         a7 = b_PANASlifenegactor_IHS_mean_partner,
+         a8 = b_PANASlifenegpartner_IHS_mean_partner,
+         b3 = b_CTSphysperpbinary_PANAS_life_neg_actor,
+         b4 = b_CTSphysperpbinary_PANAS_life_neg_partner,
+         
+         c_prime1 = b_CTSphysperpbinary_IHS_mean_actor,
+         c_prime2 = b_CTSphysperpbinary_IHS_mean_partner
+         ) |> 
+  mutate(a1b1 = a1 * b1,
+         a2b2 = a2 * b2,
+         a3b1 = a3 * b1,
+         a4b2 = a4 * b2,
+         
+         a5b3 = a5 * b3,
+         a6b4 = a6 * b4,
+         a7b3 = a7 * b3,
+         a8b4 = a8 * b4)
+```
+
+
+
+```{r, warning = F}
+phys_cov_draws |> 
+  select(a1b1:a8b4) |> 
+  pivot_longer(a1b1:a8b4) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+
+Again, we see that none of the indirect effects of interest were reliably different from zero. 
+
+
+### SGM-specific 
+
+Set the priors: 
+```{r}
+sgm_prior_cov <- c(
+## IPV PERPETRATION
+  # prior on Intercept (logit scale)
+  prior(normal(1.5, 1), class = b, coef = Intercept, resp = CTSsgmperpbinary), 
+  # prior on internalized stigma predicting IPV 
+  prior(normal(0, 0.5), class = b, coef = IHS_mean_actor, resp = CTSsgmperpbinary),
+  prior(normal(0, 0.5), class = b, coef = IHS_mean_partner, resp = CTSsgmperpbinary), 
+  # prior on couple variability
+  prior(exponential(1), class = sd, resp = CTSsgmperpbinary),
+  
+  # priors for negative affect predicting IPV
+  prior(normal(1, 1), class = b, coef = PANAS_disc_neg_actor, resp = CTSsgmperpbinary),
+  prior(normal(1, 1), class = b, coef = PANAS_disc_neg_partner, resp = CTSsgmperpbinary),
+  prior(normal(1, 1), class = b, coef = PANAS_life_neg_actor, resp = CTSsgmperpbinary),
+  prior(normal(1, 1), class = b, coef = PANAS_life_neg_partner, resp = CTSsgmperpbinary),
+  # priors for covariates
+  prior(normal(0, 0.5), class = b, coef = Age, resp = CTSsgmperpbinary),
+  prior(normal(0, 0.5), class = b, coef = rel_length_yrs, resp = CTSsgmperpbinary),
+  prior(normal(0, 0.5), class = b, coef = sxlorx_dichBiP, resp = CTSsgmperpbinary),
+  prior(normal(0, 0.5), class = b, coef = gender_threeCisman, resp = CTSsgmperpbinary),
+  prior(normal(0, 0.5), class = b, coef = gender_threeGenderdiverse, resp = CTSsgmperpbinary),
+  prior(normal(0, 0.5), class = b, coef = race_dichBIPOC, resp = CTSsgmperpbinary),
+  
+## NEGATIVE AFFECT
+  # prior for mean NA
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegpartner),
+  # priors for internalized stigma predicting negative affect
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegactor), 
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegpartner),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegactor),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegactor), 
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegactor),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegpartner),
+  # priors for sigma (negative affect)
+  prior(exponential(1), class = sigma, resp = PANASdiscnegactor),
+  prior(exponential(1), class = sigma, resp = PANASdiscnegpartner),
+  prior(exponential(1), class = sigma, resp = PANASlifenegactor),
+  prior(exponential(1), class = sigma, resp = PANASlifenegpartner),
+
+  # priors for covariates 
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_disc, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_discJointstressor, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_sev, resp = PANASdiscnegactor),
+  
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_disc, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_discJointstressor, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_sev, resp = PANASdiscnegpartner),
+  
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_life, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_lifeJointstressor, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegactor),
+  
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_life, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_lifeJointstressor, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegpartner)
+)
+```
+
+Run the model:
+```{r, warning = F}
+aim3_sgm_cov <- brm(m1_actor_cov + m1_partner_cov + m2_actor_cov + m2_partner_cov + y_mod_sgm_cov + set_rescor(rescor = F),
+                prior = sgm_prior_cov,
+                data = data,
+                chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                seed = 1234,
+                control = list(adapt_delta = .9),
+                file = "fits/aim3_sgm_cov",
+                file_refit = "on_change")
+```
+
+Summarize:
+```{r}
+summary(aim3_sgm_cov, prob = .89)
+```
+
+Calculate indirect effects:
+```{r}
+sgm_cov_draws <- as_draws_df(aim3_sgm_cov)
+
+sgm_cov_draws <- sgm_cov_draws |> 
+  mutate(a1 = b_PANASdiscnegactor_IHS_mean_actor,
+         a2 = b_PANASdiscnegpartner_IHS_mean_actor,
+         a3 = b_PANASdiscnegactor_IHS_mean_partner,
+         a4 = b_PANASdiscnegpartner_IHS_mean_partner,
+         b1 = b_CTSsgmperpbinary_PANAS_disc_neg_actor,
+         b2 = b_CTSsgmperpbinary_PANAS_disc_neg_partner,
+         
+         a5 = b_PANASlifenegactor_IHS_mean_actor,
+         a6 = b_PANASlifenegpartner_IHS_mean_actor,
+         a7 = b_PANASlifenegactor_IHS_mean_partner,
+         a8 = b_PANASlifenegpartner_IHS_mean_partner,
+         b3 = b_CTSsgmperpbinary_PANAS_life_neg_actor,
+         b4 = b_CTSsgmperpbinary_PANAS_life_neg_partner,
+         
+         c_prime1 = b_CTSsgmperpbinary_IHS_mean_actor,
+         c_prime2 = b_CTSsgmperpbinary_IHS_mean_partner
+         ) |> 
+  mutate(a1b1 = a1 * b1,
+         a2b2 = a2 * b2,
+         a3b1 = a3 * b1,
+         a4b2 = a4 * b2,
+         
+         a5b3 = a5 * b3,
+         a6b4 = a6 * b4,
+         a7b3 = a7 * b3,
+         a8b4 = a8 * b4)
+```
+
+
+Summarize the indirect effects:
+
+```{r, warning = F}
+sgm_cov_draws |> 
+  select(a1b1:a8b4) |> 
+  pivot_longer(a1b1:a8b4) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+
+We still see that the result from before (partner IS --> partner negative affect after discrimination stressor discussion --> SGM-specific IPV perpetration) was reliably different from zero. Let's test to see if that is different from the equivalent life stressor pathway. 
+
+
+```{r, warning = F}
+sgm_cov_draws <- sgm_cov_draws |> 
+  mutate(comp = abs(a4b2) - abs(a8b4))
+
+sgm_cov_draws |> 
+  select(comp) |> 
+  pivot_longer(comp) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+Again, we see that there's not a reliable difference although the estimate is quite variable. 
+
+## Pulling results for tables 
+
+Ok so summarizing all fo the results of the models above is a TASK. A figure would be quite messy, and one large table wouldn't fit nicely on a page in a way that would make the organization of information simple. So, instead, the best bet I could figure out was to separate out the results into the various components of the mediation models. 
+
+I start with the "b pathways" that represent the portion of models where internalized stigma predicts negative affect after the various discussions. These estimates are similar for each of the models, but note that each of the outcome models may have some slight variation in rounding/simulation variance as a result. 
+
+I then move on to the "c' pathways" that represent the prediction of IPV from both internalized stigma and negative affect (i.e. the effect of internalized stigma on IPV perpetration controlling for negative affect). 
+
+Finally, I then pull all of the indirect effect calculations into one table. I'll report the specific comparisons that I completed in-text since there were only a few there. 
+
+### b pathways
+
+For reporting, we'll use the estimates from the psychological IPV perpetration model. 
+
+```{r, warning = F}
+# bpaths post-life, actor NA 
+b_life_actorNA <- as_draws_df(aim3_psych) |> 
+  # select only the portions that focus on negative affect, clean it up
+  select(b1_ActorIS = b_PANASlifenegactor_IHS_mean_actor,
+         b2_PartnerIS = b_PANASlifenegactor_IHS_mean_partner) |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(actorNA_life, c("value", ".lower", ".upper"), sep = " ", remove = T)
+
+# bpaths post-life, partner NA
+b_life_partnerNA <- as_draws_df(aim3_psych) |> 
+  # select only the portions that focus on negative affect, clean it up
+  select(b1_ActorIS = b_PANASlifenegpartner_IHS_mean_actor,
+         b2_PartnerIS = b_PANASlifenegpartner_IHS_mean_partner) |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(partnerNA_life, c("value", ".lower", ".upper"), sep = " ", remove = T)
+
+# bpaths post-discrimination, actor NA
+b_disc_actorNA <- as_draws_df(aim3_psych) |> 
+  # select only the portions that focus on negative affect, clean it up
+  select(b1_ActorIS = b_PANASdiscnegactor_IHS_mean_actor,
+         b2_PartnerIS = b_PANASdiscnegactor_IHS_mean_partner) |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(actorNA_disc, c("value", ".lower", ".upper"), sep = " ", remove = T)
+
+# bpaths post-discrimination, partner NA 
+b_disc_partnerNA <- as_draws_df(aim3_psych) |> 
+  # select only the portions that focus on negative affect, clean it up
+  select(b1_ActorIS = b_PANASdiscnegpartner_IHS_mean_actor,
+         b2_PartnerIS = b_PANASdiscnegpartner_IHS_mean_partner) |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(partnerNA_disc, c("value", ".lower", ".upper"), sep = " ", remove = T)
+```
+
+Pull all of those together:
+```{r, message = F}
+bpaths_no_cov <- b_life_actorNA |> 
+  left_join(b_life_partnerNA) |> 
+  left_join(b_disc_actorNA) |> 
+  left_join(b_disc_partnerNA)
+bpaths_no_cov
+```
+Great, now let's also pull results from the model with covariates:
+```{r, warning = F}
+# bpaths post-life, actor NA 
+b_life_actorNA_cov <- as_draws_df(aim3_psych_cov) |> 
+  # select only the portions that focus on negative affect, clean it up
+  select(b1_ActorIS = b_PANASlifenegactor_IHS_mean_actor,
+         b2_PartnerIS = b_PANASlifenegactor_IHS_mean_partner,
+         b3_CSI = b_PANASlifenegactor_CSI_sum,
+         b4_DC = b_PANASlifenegactor_GlobalCoping_rc_life,
+         b5_order = b_PANASlifenegactor_DiscussionOrderLifestressordiscussionfirst,
+         b6_type = b_PANASlifenegactor_stressor_type_rc_lifeJointstressor,
+         b7_sev = b_PANASlifenegactor_StressorTopic_sev) |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(actorNA_life, c("value", ".lower", ".upper"), sep = " ", remove = T)
+
+# bpaths post-life, partner NA
+b_life_partnerNA_cov <- as_draws_df(aim3_psych_cov) |> 
+  # select only the portions that focus on negative affect, clean it up
+  select(b1_ActorIS = b_PANASlifenegpartner_IHS_mean_actor,
+         b2_PartnerIS = b_PANASlifenegpartner_IHS_mean_partner,
+         b3_CSI = b_PANASlifenegpartner_CSI_sum,
+         b4_DC = b_PANASlifenegpartner_GlobalCoping_rc_life,
+         b5_order = b_PANASlifenegpartner_DiscussionOrderLifestressordiscussionfirst,
+         b6_type = b_PANASlifenegpartner_stressor_type_rc_lifeJointstressor,
+         b7_sev = b_PANASlifenegpartner_StressorTopic_sev) |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(partnerNA_life, c("value", ".lower", ".upper"), sep = " ", remove = T)
+
+# bpaths post-discrimination, actor NA
+b_disc_actorNA_cov <- as_draws_df(aim3_psych_cov) |> 
+  # select only the portions that focus on negative affect, clean it up
+  select(b1_ActorIS = b_PANASdiscnegactor_IHS_mean_actor,
+         b2_PartnerIS = b_PANASdiscnegactor_IHS_mean_partner,
+         b3_CSI = b_PANASdiscnegactor_CSI_sum,
+         b4_DC = b_PANASdiscnegactor_GlobalCoping_rc_disc,
+         b5_order = b_PANASdiscnegactor_DiscussionOrderLifestressordiscussionfirst,
+         b6_type = b_PANASdiscnegactor_stressor_type_rc_discJointstressor,
+         b7_sev = b_PANASdiscnegactor_DiscrimTopic_sev) |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(actorNA_disc, c("value", ".lower", ".upper"), sep = " ", remove = T)
+
+# bpaths post-discrimination, partner NA 
+b_disc_partnerNA_cov <- as_draws_df(aim3_psych_cov) |> 
+  # select only the portions that focus on negative affect, clean it up
+  select(b1_ActorIS = b_PANASdiscnegpartner_IHS_mean_actor,
+         b2_PartnerIS = b_PANASdiscnegpartner_IHS_mean_partner,
+         b3_CSI = b_PANASdiscnegpartner_CSI_sum,
+         b4_DC = b_PANASdiscnegpartner_GlobalCoping_rc_disc,
+         b5_order = b_PANASdiscnegpartner_DiscussionOrderLifestressordiscussionfirst,
+         b6_type = b_PANASdiscnegpartner_stressor_type_rc_discJointstressor,
+         b7_sev = b_PANASdiscnegpartner_DiscrimTopic_sev) |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  # get rid of columns not needed
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(partnerNA_disc, c("value", ".lower", ".upper"), sep = " ", remove = T)
+```
+
+Combine them together into one frame:
+```{r, message = F}
+bpaths_cov <- b_life_actorNA_cov |> 
+  left_join(b_life_partnerNA_cov) |> 
+  left_join(b_disc_actorNA_cov) |> 
+  left_join(b_disc_partnerNA_cov)
+bpaths_cov
+```
+Then put both sets of models together to save:
+
+```{r}
+aim2_output_bpaths <- rbind(bpaths_no_cov, bpaths_cov)
+aim2_output_bpaths
+```
+
+Save:
+```{r}
+write.csv(aim2_output_bpaths, "output/aim2_output_bpaths.csv")
+```
+
+### c' pathways
+
+Luckily, the code for this table of models (direct effects, controlling for negative affect) is very similar to what we used above for Aim 1. 
+
+Let's do psych IPV:
+
+```{r, warning = F}
+aim3_draws_psych <- as_draws_df(aim3_psych) |> 
+  select(b1_Intercept = b_CTSpsychperpHR_Intercept,
+         b2_Actor_IS = b_CTSpsychperpHR_IHS_mean_actor,
+         b3_Partner_IS = b_CTSpsychperpHR_IHS_mean_partner,
+         b4_ActorNA_life = b_CTSpsychperpHR_PANAS_life_neg_actor,
+         b5_PartnerNA_life = b_CTSpsychperpHR_PANAS_life_neg_partner,
+         b6_ActorNA_disc = b_CTSpsychperpHR_PANAS_disc_neg_actor,
+         b7_PartnerNA_disc = b_CTSpsychperpHR_PANAS_disc_neg_partner) |> 
+  # exponentiate to get IRR estimate
+  mutate(irr1_Intercept = exp(b1_Intercept),
+         irr2_Actor_IS = exp(b2_Actor_IS),
+         irr3_Partner_IS = exp(b3_Partner_IS),
+         irr4_ActorNA_life = exp(b4_ActorNA_life),
+         irr5_PartnerNA_life = exp(b5_PartnerNA_life),
+         irr6_ActorNA_disc = exp(b6_ActorNA_disc),
+         irr7_PartnerNA_disc = exp(b7_PartnerNA_disc))  |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']'))
+aim3_draws_psych
+
+# separate out unstandardized coefficients
+unstd_psych_3 <- aim3_draws_psych |> 
+  filter(str_detect(name, 'b')) |> 
+  unite(psych_b_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+unstd_psych_3
+
+# separate out standardized 
+std_psych_3 <- aim3_draws_psych |> 
+  filter(str_detect(name, 'irr')) |> 
+  mutate(name = str_replace(name, "irr", "b")) |> 
+  unite(psych_irr_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+std_psych_3
+```
+
+Doing this with physical:
+```{r}
+aim3_draws_phys <- as_draws_df(aim3_phys) |> 
+  select(b1_Intercept = b_CTSphysperpbinary_Intercept,
+         b2_Actor_IS = b_CTSphysperpbinary_IHS_mean_actor,
+         b3_Partner_IS = b_CTSphysperpbinary_IHS_mean_partner,
+         b4_ActorNA_life = b_CTSphysperpbinary_PANAS_life_neg_actor,
+         b5_PartnerNA_life = b_CTSphysperpbinary_PANAS_life_neg_partner,
+         b6_ActorNA_disc = b_CTSphysperpbinary_PANAS_disc_neg_actor,
+         b7_PartnerNA_disc = b_CTSphysperpbinary_PANAS_disc_neg_partner) |> 
+  # exponentiate to get OR estimate
+  mutate(or1_Intercept = exp(b1_Intercept),
+         or2_Actor_IS = exp(b2_Actor_IS),
+         or3_Partner_IS = exp(b3_Partner_IS),
+         or4_ActorNA_life = exp(b4_ActorNA_life),
+         or5_PartnerNA_life = exp(b5_PartnerNA_life),
+         or6_ActorNA_disc = exp(b6_ActorNA_disc),
+         or7_PartnerNA_disc = exp(b7_PartnerNA_disc))  |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']'))
+aim3_draws_phys
+
+# separate out unstandardized coefficients
+unstd_phys_3 <- aim3_draws_phys |> 
+  filter(str_detect(name, 'b')) |> 
+  unite(phys_b_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+unstd_phys_3
+
+# separate out standardized 
+std_phys_3 <- aim3_draws_phys |> 
+  filter(str_detect(name, 'or')) |> 
+  mutate(name = str_replace(name, "or", "b")) |> 
+  unite(phys_or_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+std_phys_3
+```
+
+SGM-specific:
+```{r}
+aim3_draws_sgm <- as_draws_df(aim3_sgm) |> 
+  select(b1_Intercept = b_CTSsgmperpbinary_Intercept,
+         b2_Actor_IS = b_CTSsgmperpbinary_IHS_mean_actor,
+         b3_Partner_IS = b_CTSsgmperpbinary_IHS_mean_partner,
+         b4_ActorNA_life = b_CTSsgmperpbinary_PANAS_life_neg_actor,
+         b5_PartnerNA_life = b_CTSsgmperpbinary_PANAS_life_neg_partner,
+         b6_ActorNA_disc = b_CTSsgmperpbinary_PANAS_disc_neg_actor,
+         b7_PartnerNA_disc = b_CTSsgmperpbinary_PANAS_disc_neg_partner) |> 
+  # exponentiate to get OR estimate
+  mutate(or1_Intercept = exp(b1_Intercept),
+         or2_Actor_IS = exp(b2_Actor_IS),
+         or3_Partner_IS = exp(b3_Partner_IS),
+         or4_ActorNA_life = exp(b4_ActorNA_life),
+         or5_PartnerNA_life = exp(b5_PartnerNA_life),
+         or6_ActorNA_disc = exp(b6_ActorNA_disc),
+         or7_PartnerNA_disc = exp(b7_PartnerNA_disc))  |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']'))
+aim3_draws_sgm
+
+# separate out unstandardized coefficients
+unstd_sgm_3 <- aim3_draws_sgm |> 
+  filter(str_detect(name, 'b')) |> 
+  unite(sgm_b_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+unstd_sgm_3
+
+# separate out standardized 
+std_sgm_3 <- aim3_draws_sgm |> 
+  filter(str_detect(name, 'or')) |> 
+  mutate(name = str_replace(name, "or", "b")) |> 
+  unite(sgm_or_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+std_sgm_3
+```
+
+Unite all of them together:
+```{r, message = F}
+aim3_no_cov <- unstd_psych_3 |> 
+  left_join(std_psych_3) |> 
+  left_join(unstd_phys_3) |> 
+  left_join(std_phys_3) |> 
+  left_join(unstd_sgm_3) |> 
+  left_join(std_sgm_3)
+aim3_no_cov
+```
+
+Now let's do the same process for the models with covariates:
+
+```{r}
+aim3_draws_psych_cov <- as_draws_df(aim3_psych_cov) |> 
+  select(b01_Intercept = b_CTSpsychperpHR_Intercept,
+         b02_Actor_IS = b_CTSpsychperpHR_IHS_mean_actor,
+         b03_Partner_IS = b_CTSpsychperpHR_IHS_mean_partner,
+         b04_ActorNA_life = b_CTSpsychperpHR_PANAS_life_neg_actor,
+         b05_PartnerNA_life = b_CTSpsychperpHR_PANAS_life_neg_partner,
+         b06_ActorNA_disc = b_CTSpsychperpHR_PANAS_disc_neg_actor,
+         b07_PartnerNA_disc = b_CTSpsychperpHR_PANAS_disc_neg_partner,
+         b08_age = b_CTSpsychperpHR_Age,
+         b09_length = b_CTSpsychperpHR_rel_length_yrs,
+         b10_sxlorx = b_CTSpsychperpHR_sxlorx_dichBiP,
+         b11_cism = b_CTSpsychperpHR_gender_threeCisman,
+         b12_gd = b_CTSpsychperpHR_gender_threeGenderdiverse,
+         b13_poc = b_CTSpsychperpHR_race_dichBIPOC) |> 
+  # exponentiate to get IRR estimate
+  mutate(irr01_Intercept = exp(b01_Intercept),
+         irr02_Actor_IS = exp(b02_Actor_IS),
+         irr03_Partner_IS = exp(b03_Partner_IS),
+         irr04_ActorNA_life = exp(b04_ActorNA_life),
+         irr05_PartnerNA_life = exp(b05_PartnerNA_life),
+         irr06_ActorNA_disc = exp(b06_ActorNA_disc),
+         irr07_PartnerNA_disc = exp(b07_PartnerNA_disc),
+         irr08_age = exp(b08_age),
+         irr09_length = exp(b09_length),
+         irr10_sxlorx = exp(b10_sxlorx),
+         irr11_cism = exp(b11_cism),
+         irr12_gd = exp(b12_gd),
+         irr13_poc = exp(b13_poc))  |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']'))
+aim3_draws_psych_cov
+
+# separate out unstandardized coefficients
+unstd_psych_3_cov <- aim3_draws_psych_cov |> 
+  filter(str_detect(name, 'b')) |> 
+  unite(psych_b_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+unstd_psych_3_cov
+
+# separate out standardized 
+std_psych_3_cov <- aim3_draws_psych_cov |> 
+  filter(str_detect(name, 'irr')) |> 
+  mutate(name = str_replace(name, "irr", "b")) |> 
+  unite(psych_irr_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+std_psych_3_cov
+```
+
+Physical:
+```{r}
+aim3_draws_phys_cov <- as_draws_df(aim3_phys_cov) |> 
+  select(b01_Intercept = b_CTSphysperpbinary_Intercept,
+         b02_Actor_IS = b_CTSphysperpbinary_IHS_mean_actor,
+         b03_Partner_IS = b_CTSphysperpbinary_IHS_mean_partner,
+         b04_ActorNA_life = b_CTSphysperpbinary_PANAS_life_neg_actor,
+         b05_PartnerNA_life = b_CTSphysperpbinary_PANAS_life_neg_partner,
+         b06_ActorNA_disc = b_CTSphysperpbinary_PANAS_disc_neg_actor,
+         b07_PartnerNA_disc = b_CTSphysperpbinary_PANAS_disc_neg_partner,
+         b08_age = b_CTSphysperpbinary_Age,
+         b09_length = b_CTSphysperpbinary_rel_length_yrs,
+         b10_sxlorx = b_CTSphysperpbinary_sxlorx_dichBiP,
+         b11_cism = b_CTSphysperpbinary_gender_threeCisman,
+         b12_gd = b_CTSphysperpbinary_gender_threeGenderdiverse,
+         b13_poc = b_CTSphysperpbinary_race_dichBIPOC) |> 
+  # exponentiate to get IRR estimate
+  mutate(or01_Intercept = exp(b01_Intercept),
+         or02_Actor_IS = exp(b02_Actor_IS),
+         or03_Partner_IS = exp(b03_Partner_IS),
+         or04_ActorNA_life = exp(b04_ActorNA_life),
+         or05_PartnerNA_life = exp(b05_PartnerNA_life),
+         or06_ActorNA_disc = exp(b06_ActorNA_disc),
+         or07_PartnerNA_disc = exp(b07_PartnerNA_disc),
+         or08_age = exp(b08_age),
+         or09_length = exp(b09_length),
+         or10_sxlorx = exp(b10_sxlorx),
+         or11_cism = exp(b11_cism),
+         or12_gd = exp(b12_gd),
+         or13_poc = exp(b13_poc))  |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']'))
+aim3_draws_phys_cov
+
+# separate out unstandardized coefficients
+unstd_phys_3_cov <- aim3_draws_phys_cov |> 
+  filter(str_detect(name, 'b')) |> 
+  unite(phys_b_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+unstd_phys_3_cov
+
+# separate out standardized 
+std_phys_3_cov <- aim3_draws_phys_cov |> 
+  filter(str_detect(name, 'or')) |> 
+  mutate(name = str_replace(name, "or", "b")) |> 
+  unite(phys_or_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+std_phys_3_cov
+```
+
+SGM-specific:
+```{r}
+aim3_draws_sgm_cov <- as_draws_df(aim3_sgm_cov) |> 
+  select(b01_Intercept = b_CTSsgmperpbinary_Intercept,
+         b02_Actor_IS = b_CTSsgmperpbinary_IHS_mean_actor,
+         b03_Partner_IS = b_CTSsgmperpbinary_IHS_mean_partner,
+         b04_ActorNA_life = b_CTSsgmperpbinary_PANAS_life_neg_actor,
+         b05_PartnerNA_life = b_CTSsgmperpbinary_PANAS_life_neg_partner,
+         b06_ActorNA_disc = b_CTSsgmperpbinary_PANAS_disc_neg_actor,
+         b07_PartnerNA_disc = b_CTSsgmperpbinary_PANAS_disc_neg_partner,
+         b08_age = b_CTSsgmperpbinary_Age,
+         b09_length = b_CTSsgmperpbinary_rel_length_yrs,
+         b10_sxlorx = b_CTSsgmperpbinary_sxlorx_dichBiP,
+         b11_cism = b_CTSsgmperpbinary_gender_threeCisman,
+         b12_gd = b_CTSsgmperpbinary_gender_threeGenderdiverse,
+         b13_poc = b_CTSsgmperpbinary_race_dichBIPOC) |> 
+  # exponentiate to get IRR estimate
+  mutate(or01_Intercept = exp(b01_Intercept),
+         or02_Actor_IS = exp(b02_Actor_IS),
+         or03_Partner_IS = exp(b03_Partner_IS),
+         or04_ActorNA_life = exp(b04_ActorNA_life),
+         or05_PartnerNA_life = exp(b05_PartnerNA_life),
+         or06_ActorNA_disc = exp(b06_ActorNA_disc),
+         or07_PartnerNA_disc = exp(b07_PartnerNA_disc),
+         or08_age = exp(b08_age),
+         or09_length = exp(b09_length),
+         or10_sxlorx = exp(b10_sxlorx),
+         or11_cism = exp(b11_cism),
+         or12_gd = exp(b12_gd),
+         or13_poc = exp(b13_poc))  |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']'))
+aim3_draws_sgm_cov
+
+# separate out unstandardized coefficients
+unstd_sgm_3_cov <- aim3_draws_sgm_cov |> 
+  filter(str_detect(name, 'b')) |> 
+  unite(sgm_b_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+unstd_sgm_3_cov
+
+# separate out standardized 
+std_sgm_3_cov <- aim3_draws_sgm_cov |> 
+  filter(str_detect(name, 'or')) |> 
+  mutate(name = str_replace(name, "or", "b")) |> 
+  unite(sgm_or_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+std_sgm_3_cov
+```
+
+Now combine models with covariates together:
+```{r, message = F}
+aim3_cov <- unstd_psych_3_cov |> 
+  left_join(std_psych_3_cov) |> 
+  left_join(unstd_phys_3_cov) |> 
+  left_join(std_phys_3_cov) |> 
+  left_join(unstd_sgm_3_cov) |> 
+  left_join(std_sgm_3_cov)
+aim3_cov
+```
+
+Finally combine all models together:
+```{r}
+aim3_output_cpaths <- rbind(aim3_no_cov, aim3_cov)
+aim3_output_cpaths
+```
+
+& save the output:
+```{r}
+write.csv(aim3_output_cpaths, "output/aim3_output_cpaths.csv")
+```
+
+### indirect effect pathways
+
+Let's gather these results for psych IPV:
+```{r}
+ind_psych_no_covs <- psych_draws |> 
+  select(
+    ## actor effects
+    # own NA life 
+    b1_ownIS_ownIPV_ownNA_life = a5b3,
+    # partner NA life
+    b2_ownIS_ownIPV_parNA_life = a6b4,
+    # own NA disc
+    b3_ownIS_ownIPV_ownNA_disc = a1b1,
+    # partner NA disc
+    b4_ownIS_ownIPV_parNA_disc = a2b2,
+    
+    ## partner effects
+    # own NA life
+    b5_parIS_ownIPV_ownNA_life = a7b3,
+    # partner NA life
+    b6_parIS_ownIPV_parNA_life = a8b4,
+    # own NA disc
+    b7_parIS_ownIPV_ownNA_disc = a3b1,
+    # partner NA disc
+    b8_parIS_ownIPV_parNA_disc = a4b2) |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(psych_b_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+ind_psych_no_covs
+
+ind_psych_covs <- psych_cov_draws |> 
+  select(
+    ## actor effects
+    # own NA life 
+    b1_ownIS_ownIPV_ownNA_life = a5b3,
+    # partner NA life
+    b2_ownIS_ownIPV_parNA_life = a6b4,
+    # own NA disc
+    b3_ownIS_ownIPV_ownNA_disc = a1b1,
+    # partner NA disc
+    b4_ownIS_ownIPV_parNA_disc = a2b2,
+    
+    ## partner effects
+    # own NA life
+    b5_parIS_ownIPV_ownNA_life = a7b3,
+    # partner NA life
+    b6_parIS_ownIPV_parNA_life = a8b4,
+    # own NA disc
+    b7_parIS_ownIPV_ownNA_disc = a3b1,
+    # partner NA disc
+    b8_parIS_ownIPV_parNA_disc = a4b2) |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(psych_b_CrI_covs, c("value", ".lower", ".upper"), sep = " ", remove = T)
+ind_psych_covs
+```
+
+Physical IPV:
+```{r}
+ind_phys_no_covs <- phys_draws |> 
+  select(
+    ## actor effects
+    # own NA life 
+    b1_ownIS_ownIPV_ownNA_life = a5b3,
+    # partner NA life
+    b2_ownIS_ownIPV_parNA_life = a6b4,
+    # own NA disc
+    b3_ownIS_ownIPV_ownNA_disc = a1b1,
+    # partner NA disc
+    b4_ownIS_ownIPV_parNA_disc = a2b2,
+    
+    ## partner effects
+    # own NA life
+    b5_parIS_ownIPV_ownNA_life = a7b3,
+    # partner NA life
+    b6_parIS_ownIPV_parNA_life = a8b4,
+    # own NA disc
+    b7_parIS_ownIPV_ownNA_disc = a3b1,
+    # partner NA disc
+    b8_parIS_ownIPV_parNA_disc = a4b2) |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(phys_b_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+ind_phys_no_covs
+
+ind_phys_covs <- phys_cov_draws |> 
+  select(
+    ## actor effects
+    # own NA life 
+    b1_ownIS_ownIPV_ownNA_life = a5b3,
+    # partner NA life
+    b2_ownIS_ownIPV_parNA_life = a6b4,
+    # own NA disc
+    b3_ownIS_ownIPV_ownNA_disc = a1b1,
+    # partner NA disc
+    b4_ownIS_ownIPV_parNA_disc = a2b2,
+    
+    ## partner effects
+    # own NA life
+    b5_parIS_ownIPV_ownNA_life = a7b3,
+    # partner NA life
+    b6_parIS_ownIPV_parNA_life = a8b4,
+    # own NA disc
+    b7_parIS_ownIPV_ownNA_disc = a3b1,
+    # partner NA disc
+    b8_parIS_ownIPV_parNA_disc = a4b2) |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(phys_b_CrI_covs, c("value", ".lower", ".upper"), sep = " ", remove = T)
+ind_phys_covs
+```
+
+& SGM-specific IPV:
+```{r}
+ind_sgm_no_covs <- sgm_draws |> 
+  select(
+    ## actor effects
+    # own NA life 
+    b1_ownIS_ownIPV_ownNA_life = a5b3,
+    # partner NA life
+    b2_ownIS_ownIPV_parNA_life = a6b4,
+    # own NA disc
+    b3_ownIS_ownIPV_ownNA_disc = a1b1,
+    # partner NA disc
+    b4_ownIS_ownIPV_parNA_disc = a2b2,
+    
+    ## partner effects
+    # own NA life
+    b5_parIS_ownIPV_ownNA_life = a7b3,
+    # partner NA life
+    b6_parIS_ownIPV_parNA_life = a8b4,
+    # own NA disc
+    b7_parIS_ownIPV_ownNA_disc = a3b1,
+    # partner NA disc
+    b8_parIS_ownIPV_parNA_disc = a4b2) |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(sgm_b_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T)
+ind_sgm_no_covs
+
+ind_sgm_covs <- sgm_cov_draws |> 
+  select(
+    ## actor effects
+    # own NA life 
+    b1_ownIS_ownIPV_ownNA_life = a5b3,
+    # partner NA life
+    b2_ownIS_ownIPV_parNA_life = a6b4,
+    # own NA disc
+    b3_ownIS_ownIPV_ownNA_disc = a1b1,
+    # partner NA disc
+    b4_ownIS_ownIPV_parNA_disc = a2b2,
+    
+    ## partner effects
+    # own NA life
+    b5_parIS_ownIPV_ownNA_life = a7b3,
+    # partner NA life
+    b6_parIS_ownIPV_parNA_life = a8b4,
+    # own NA disc
+    b7_parIS_ownIPV_ownNA_disc = a3b1,
+    # partner NA disc
+    b8_parIS_ownIPV_parNA_disc = a4b2) |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  select(-.width, -.point, -.interval) |> 
+  # round values out
+  mutate(across(c("value", ".lower", ".upper"), ~ format(round(., 2), nsmall = 2))) |>
+  # add brackets to confidence interval terms
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(sgm_b_CrI_covs, c("value", ".lower", ".upper"), sep = " ", remove = T)
+ind_sgm_covs
+```
+
+Then combine these altogether into a table:
+```{r, message = F}
+aim3_output_indpaths <- ind_psych_no_covs |> 
+  left_join(ind_psych_covs) |> 
+  left_join(ind_phys_no_covs) |> 
+  left_join(ind_phys_covs) |> 
+  left_join(ind_sgm_no_covs) |> 
+  left_join(ind_sgm_covs) 
+aim3_output_indpaths
+```
+
+Then save:
+```{r}
+write.csv(aim3_output_indpaths, "output/aim3_output_indpaths.csv")
+```
+
+# Sensitivity analysis
+
+Ok so it is possible that some of the different results we see with covariates (for psych perp) could be due to the fact that these models are based on a different N overall. So, let's go ahead and re-run the portions of Aim 1 and 2 that do *not* have covariates to see if we have the same pattern of effects present.
+
+First, create a new dataframe of only couples who have complete data:
+```{r}
+data_comp <- data |> 
+  mutate(missing_any = ifelse((missing_CTSphys == T | missing_CTSpsych == T | missing_CTSsgm == T | CoupleID == 1054 | CoupleID == 1138 | missing_PANASlife == T | missing_PANASdisc == T | missing_GlobalDClife == T | missing_GlobalDCdisc == T | CoupleID == 1083), T, F)) |> 
+  filter(missing_any == F)
+```
+
+## Aim 1 
+
+Now run the models:
+```{r}
+aim1_psych_sens <- brm(bf(CTS_psych_perp_HR ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + (1 | CoupleID)),
+                  prior = c(# prior on mean (log scale)
+                            prior(normal(1, 0.5), class = b, coef = Intercept), 
+                            # priors for frequency
+                            prior(normal(0.8, 1), class = b, coef = IHS_mean_actor),
+                            prior(normal(0.8, 1), class = b, coef = IHS_mean_partner),
+                            # prior on couple variability
+                            prior(exponential(1), class = sd),
+                            # prior on dispersion parameter
+                            prior(exponential(1), class = shape) 
+                  ),
+                  data = data_comp,
+                  family = negbinomial(),
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim1_psych_sens",
+                  file_refit = "on_change"
+                  )
+
+aim1_phys_sens <- brm(bf(CTS_phys_perp_binary ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + (1 | CoupleID)),
+                  prior = c(# prior on odds of being 1 (logit scale)
+                            prior(normal(1.5, 1), class = b, coef = Intercept), 
+                            # prior on regression relationship
+                            prior(normal(0.5, 0.75), class = b, coef = IHS_mean_actor),
+                            prior(normal(0.5, 0.75), class = b, coef = IHS_mean_partner), 
+                            # prior on couple variability
+                            prior(exponential(1), class = sd) 
+                  ),
+                 data = data_comp,
+                  family = bernoulli,
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/aim1_phys_sens",
+                  file_refit = "on_change"
+                  )
+
+aim1_sgm_sens <- brm(bf(CTS_sgm_perp_binary ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + (1 | CoupleID)),
+                  prior = c(# prior on odds of being a 1 (logit scale)
+                            prior(normal(1.5, 1), class = b, coef = Intercept),
+                            # prior on regression relationship
+                            prior(normal(0, 0.5), class = b, coef = IHS_mean_actor),
+                            prior(normal(0, 0.5), class = b, coef = IHS_mean_partner), 
+                            # prior on couple variability
+                            prior(exponential(1), class = sd) 
+                  ),
+                data = data_comp,
+                  family = bernoulli,
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/aim1_sgm_sens",
+                  file_refit = "on_change"
+                  )
+```
+
+```{r}
+summary(aim1_psych_sens, prob = .89)
+```
+
+```{r}
+summary(aim1_phys_sens, prob = .89)
+```
+
+```{r}
+summary(aim1_sgm_sens, prob = .89)
+```
+
+These effects are alls till the same - nothing substantive changed. Let's go ahead and re-run Aim 2/3  models as well. 
+
+## Aims 2/3
+
+### Psychological
+
+Run the model:
+```{r, warning = F}
+aim3_psych_sens <- brm(m1_actor + m1_partner + m2_actor + m2_partner + y_mod_psych + set_rescor(rescor = F),
+                  prior = psych_prior,
+                  data = data_comp,
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim3_psych_sens",
+                  file_refit = "on_change")
+```
+
+Check it out:
+```{r}
+summary(aim3_psych_sens, prob = .89)
+```
+
+Calculate indirect effects via the product-of-coefficients approach:
+
+```{r}
+psych_draws_sens <- as_draws_df(aim3_psych_sens)
+
+psych_draws_sens <- psych_draws_sens |> 
+  # first, rename variables to be consistent with a, b, and c frameworks 
+  mutate(a1 = b_PANASdiscnegactor_IHS_mean_actor,
+         a2 = b_PANASdiscnegpartner_IHS_mean_actor,
+         a3 = b_PANASdiscnegactor_IHS_mean_partner,
+         a4 = b_PANASdiscnegpartner_IHS_mean_partner,
+         b1 = b_CTSpsychperpHR_PANAS_disc_neg_actor,
+         b2 = b_CTSpsychperpHR_PANAS_disc_neg_partner,
+         
+         a5 = b_PANASlifenegactor_IHS_mean_actor,
+         a6 = b_PANASlifenegpartner_IHS_mean_actor,
+         a7 = b_PANASlifenegactor_IHS_mean_partner,
+         a8 = b_PANASlifenegpartner_IHS_mean_partner,
+         b3 = b_CTSpsychperpHR_PANAS_life_neg_actor,
+         b4 = b_CTSpsychperpHR_PANAS_life_neg_partner,
+         
+         c_prime1 = b_CTSpsychperpHR_IHS_mean_actor,
+         c_prime2 = b_CTSpsychperpHR_IHS_mean_partner
+         ) |> 
+  mutate(a1b1 = a1 * b1,
+         a2b2 = a2 * b2,
+         a3b1 = a3 * b1,
+         a4b2 = a4 * b2,
+         
+         a5b3 = a5 * b3,
+         a6b4 = a6 * b4,
+         a7b3 = a7 * b3,
+         a8b4 = a8 * b4)
+```
+
+
+Next, we'll summarize those indirect effects:
+```{r, warning = F}
+psych_draws_sens |> 
+  select(a1b1:a8b4) |> 
+  pivot_longer(a1b1:a8b4) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+
+Same effects as before were reliably different from zero. Let's see the difference: 
+
+```{r, warning = F}
+psych_draws_sens <- psych_draws_sens |> 
+  mutate(comp1 = abs(a5b3) - abs(a1b1),
+         comp2 = abs(a8b4) - abs(a4b2))
+
+psych_draws_sens |> 
+  select(comp1:comp2) |> 
+  pivot_longer(comp1:comp2) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+Still the same. 
+
+### Physical
+
+Run the model:
+```{r, warning = F}
+aim3_phys_sens <- brm(m1_actor + m1_partner + m2_actor + m2_partner + y_mod_phys + set_rescor(rescor = F),
+                 prior = phys_prior,
+                 data = data_comp,
+                 chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                 seed = 1234,
+                 file = "fits/aim3_phys_sens",
+                 file_refit = "on_change")
+```
+
+Summarize:
+```{r}
+summary(aim3_phys_sens, prob = .89)
+```
+
+Now let's calculate the indirect effects:
+
+```{r}
+phys_draws_sens <- as_draws_df(aim3_phys_sens)
+
+phys_draws_sens <- phys_draws_sens |> 
+  mutate(a1 = b_PANASdiscnegactor_IHS_mean_actor,
+         a2 = b_PANASdiscnegpartner_IHS_mean_actor,
+         a3 = b_PANASdiscnegactor_IHS_mean_partner,
+         a4 = b_PANASdiscnegpartner_IHS_mean_partner,
+         b1 = b_CTSphysperpbinary_PANAS_disc_neg_actor,
+         b2 = b_CTSphysperpbinary_PANAS_disc_neg_partner,
+         
+         a5 = b_PANASlifenegactor_IHS_mean_actor,
+         a6 = b_PANASlifenegpartner_IHS_mean_actor,
+         a7 = b_PANASlifenegactor_IHS_mean_partner,
+         a8 = b_PANASlifenegpartner_IHS_mean_partner,
+         b3 = b_CTSphysperpbinary_PANAS_life_neg_actor,
+         b4 = b_CTSphysperpbinary_PANAS_life_neg_partner,
+         
+         c_prime1 = b_CTSphysperpbinary_IHS_mean_actor,
+         c_prime2 = b_CTSphysperpbinary_IHS_mean_partner
+         ) |> 
+  mutate(a1b1 = a1 * b1,
+         a2b2 = a2 * b2,
+         a3b1 = a3 * b1,
+         a4b2 = a4 * b2,
+         
+         a5b3 = a5 * b3,
+         a6b4 = a6 * b4,
+         a7b3 = a7 * b3,
+         a8b4 = a8 * b4)
+```
+
+And summarize them:
+```{r, warning = F}
+phys_draws_sens |> 
+  select(a1b1:a8b4) |> 
+  pivot_longer(a1b1:a8b4) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+
+Nothing changed here. 
+
+### SGM-specific
+
+Run the model: 
+```{r, warning = F}
+aim3_sgm_sens <- brm(m1_actor + m1_partner + m2_actor + m2_partner + y_mod_sgm + set_rescor(rescor = F),
+                prior = sgm_prior,
+                data = data_comp,
+                chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                seed = 1234,
+                control = list(adapt_delta = .9),
+                file = "fits/aim3_sgm_sens",
+                file_refit = "on_change")
+```
+
+Summarize:
+```{r}
+summary(aim3_sgm_sens, prob = .89)
+```
+
+Calculate the indirect effects:
+
+```{r}
+sgm_draws_sens <- as_draws_df(aim3_sgm_sens)
+
+sgm_draws_sens <- sgm_draws_sens |> 
+  mutate(a1 = b_PANASdiscnegactor_IHS_mean_actor,
+         a2 = b_PANASdiscnegpartner_IHS_mean_actor,
+         a3 = b_PANASdiscnegactor_IHS_mean_partner,
+         a4 = b_PANASdiscnegpartner_IHS_mean_partner,
+         b1 = b_CTSsgmperpbinary_PANAS_disc_neg_actor,
+         b2 = b_CTSsgmperpbinary_PANAS_disc_neg_partner,
+         
+         a5 = b_PANASlifenegactor_IHS_mean_actor,
+         a6 = b_PANASlifenegpartner_IHS_mean_actor,
+         a7 = b_PANASlifenegactor_IHS_mean_partner,
+         a8 = b_PANASlifenegpartner_IHS_mean_partner,
+         b3 = b_CTSsgmperpbinary_PANAS_life_neg_actor,
+         b4 = b_CTSsgmperpbinary_PANAS_life_neg_partner,
+         
+         c_prime1 = b_CTSsgmperpbinary_IHS_mean_actor,
+         c_prime2 = b_CTSsgmperpbinary_IHS_mean_partner
+         ) |> 
+  mutate(a1b1 = a1 * b1,
+         a2b2 = a2 * b2,
+         a3b1 = a3 * b1,
+         a4b2 = a4 * b2,
+         
+         a5b3 = a5 * b3,
+         a6b4 = a6 * b4,
+         a7b3 = a7 * b3,
+         a8b4 = a8 * b4)
+```
+
+Summarize the indirect effects:
+
+```{r, warning = F}
+sgm_draws_sens |> 
+  select(a1b1:a8b4) |> 
+  pivot_longer(a1b1:a8b4) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+
+Compare:
+
+```{r, warning = F}
+sgm_draws_sens <- sgm_draws_sens |> 
+  mutate(comp = abs(a4b2) - abs(a8b4))
+
+sgm_draws_sens |> 
+  select(comp) |> 
+  pivot_longer(comp) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+
+And again nothing changed - the different n's across models with and without covariates did not impact the pattern of results. 
+
+# Evaluating numerical results
+
+This section is to check that the sampling for all of the models worked as intended. We'll be looking at the effective sample size and trace plots here. 
+
+Aim 1 - unadjusted models:
+
+```{r}
+plot(aim1_psych)
+plot(aim1_phys)
+plot(aim1_sgm)
+```
+
+Aim 1 with covariates: 
+
+```{r}
+plot(aim1_psych_cov)
+plot(aim1_phys_cov)
+plot(aim1_sgm_cov)
+```
+
+Aim 3 - unadjusted models:
+
+```{r}
+plot(aim3_psych)
+plot(aim3_phys)
+plot(aim3_sgm)
+```
+
+Aim 3 with covariates: 
+
+```{r}
+plot(aim3_psych_cov)
+plot(aim3_phys_cov)
+plot(aim3_sgm_cov)
+```
+Fuzzy caterpillars all around, woo!
+
+# Some other notes
+
+It may be possible to conceptualize this as a conditional process model using Andy Hayes' language here. In his 2022 text, this would translate to:
+
+>> W moderates the indirect effect of X on Y through its moderation of the effect of X on M
+
+And in the context of this model, this would reflect: 
+
+>> Discussion type moderates the indirect effect of internalized stigma on IPV perpetration through it's moderation of the effect of internalized stigma on post-discussion negative affect. 
+
+This is fine & dandy, but preliminary analyses showed that it's difficult to estimate this b/c of the fact that our moderating factor here is a repeated measure. Therefore, we went with the parallel mediation model approach to allow for that to happen. It also allowed us to estimate the unique effects of negative affect as well. 

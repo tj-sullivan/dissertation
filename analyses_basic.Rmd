@@ -1,0 +1,535 @@
+---
+title: "analyses_basic"
+author: "T.J. Sullivan"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This document contains all of the basic analyses to report, including reliability, descriptives, and correlations. 
+
+Load packages we'll need:
+```{r, message = F, warning = F}
+library(tidyverse)
+library(sjmisc)
+library(psych)
+library(brms)
+library(cmdstanr)
+# set options for brms to utilized cmdstanr rather than rstan default
+options(mc.cores = 4,
+        brms.backend = "cmdstanr")
+library(easystats)
+```
+
+Load the dataframe that we'll use for these analyses (created from data_clean_prep file). Note that the rest of the code in this document utilizes this dataframe, so this is where it can be edited to re-run descriptives for the full (n = 84 couples) vs maximum analytic sample (n = 82 couples). 
+
+```{r}
+data <- readRDS("data/CCS_data_cleaned.rds")
+```
+
+# Frequencies, histograms, & scatterplots
+
+## IHS
+
+Histogram:
+```{r, warning = F}
+data %>% ggplot(aes(x = IHS_mean)) + geom_histogram(binwidth = .10)
+```
+
+Frequencies:
+```{r}
+data %>% frq(IHS_mean)
+```
+
+
+## CTS2
+
+Physical scatterplot:
+```{r, warning = F}
+data %>% ggplot(aes(x = CTS_phys_perp_HR)) + geom_histogram(binwidth = 1)
+```
+
+We see here that this looks pretty insane when plotted at the individual count level. This is because of a few outliers:
+```{r}
+data %>% frq(CTS_phys_perp_HR)
+```
+
+
+Let's see what happens when we remove that outlier: 
+```{r}
+data %>% filter(CTS_phys_perp_HR != 213) %>% ggplot(aes(x = CTS_phys_perp_HR)) + geom_histogram(binwidth = 1)
+```
+
+That still looks pretty skewed, but basically this is because there are large jumps in count proportions for physical IPV in this sample. It's worth looking into how analyses hold for physical IPV when excluded the couple with 213 acts of violence; however, as McElreath commonly notes, outliers are sometimes truly data and we want to preserve them in analyses because they could meaningfully inform estimates. 
+
+Psychological scatterplot:
+```{r, warning = F}
+data %>% ggplot(aes(x = CTS_psych_perp_HR)) + geom_histogram(binwidth = 1)
+```
+
+Psychological frequency: 
+```{r, warning = F}
+data %>% frq(CTS_psych_perp_HR)
+```
+
+SGM-specific scatterplot:
+```{r, warning = F}
+data %>% ggplot(aes(x = CTS_sgm_perp_HR)) + geom_histogram(binwidth = 1)
+```
+
+SGM-specific frequencies:
+```{r}
+data %>% frq(CTS_sgm_perp_HR)
+```
+
+## PANAS
+
+Scatterplot for life stressor discussion:
+```{r, warning = F}
+data %>% ggplot(aes(x = PANAS_life_neg)) + geom_histogram(binwidth = 1)
+```
+
+Frequencies for life stressor discussion:
+```{r}
+data %>% frq(PANAS_life_neg)
+```
+
+Scatterplot for discrimination stressor discussion:
+```{r, warning = F}
+data %>% ggplot(aes(x = PANAS_disc_neg)) + geom_histogram(binwidth = 1)
+```
+
+Frequencies for discrimination discussion:
+```{r}
+data %>% frq(PANAS_disc_neg)
+```
+
+
+## Bivariate scatterplots 
+
+### IHS & CTS2 subscales
+
+Physical: 
+```{r, warning = F}
+data %>% ggplot(aes(x = IHS_mean, y = CTS_phys_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
+```
+
+Let's see what that plot looks like without the very large outliers: 
+```{r, warning = F}
+data %>% filter(CTS_phys_perp_HR != 213 & CTS_phys_perp_HR != 64) %>% ggplot(aes(x = IHS_mean, y = CTS_phys_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
+```
+
+Psychological:
+```{r, warning = F}
+data %>% ggplot(aes(x = IHS_mean, y = CTS_psych_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
+```
+
+SGM-specific:
+```{r, warning = F}
+data %>% ggplot(aes(x = IHS_mean, y = CTS_sgm_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
+```
+
+### IHS & PANAS
+
+```{r, warning = F}
+data %>% ggplot(aes(x = IHS_mean, y = PANAS_life_neg)) + geom_point() + geom_jitter(width = 0.075) 
+```
+
+```{r, warning = F}
+data %>% ggplot(aes(x = IHS_mean, y = PANAS_disc_neg)) + geom_point() + geom_jitter(width = 0.075)
+```
+
+### PANAS & CTS2 subscales
+
+Physical:
+
+```{r, warning = F}
+data %>% ggplot(aes(y = PANAS_life_neg, x = CTS_phys_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
+```
+
+```{r, warning = F}
+data %>% ggplot(aes(y = PANAS_disc_neg, x = CTS_phys_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
+```
+
+Psychological:
+```{r, warning = F}
+data %>% ggplot(aes(y = PANAS_life_neg, x = CTS_psych_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
+```
+
+```{r, warning = F}
+data %>% ggplot(aes(y = PANAS_disc_neg, x = CTS_psych_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
+```
+
+SGM-specific:
+```{r, warning = F}
+data %>% ggplot(aes(y = PANAS_life_neg, x = CTS_sgm_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
+```
+
+```{r, warning = F}
+data %>% ggplot(aes(y = PANAS_disc_neg, x = CTS_sgm_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
+```
+
+# Descriptives
+
+## IPV prevalence
+
+Let's get individual-level prevalence across subscales and for specific acts on the CTS2: 
+```{r}
+# workflow to get percentage & n endorsed for each act of IPV 
+prev <- data %>% 
+  # select variables for reporting
+  select(phys_ipv_prev, CTS_phys_threw_perp:CTS_phys_kick_perp,
+         psych_ipv_prev, CTS_psych_swore_perp:CTS_psych_threat_perp,
+         sgm_ipv_prev, CTS_sgm_threatout_perp:CTS_sgm_pda_perp) %>% 
+  # recode them as yes/no 
+  mutate(across(everything(), ~ if_else(.x > 0, T, F))) %>%
+  # reduce down to sum of yes and percent (based on total valid n)
+  summarize(across(everything(), list(sum = ~ sum(.x, na.rm = T), 
+                                      perc = ~ ((sum(.x, na.rm = T)) / (sum(!is.na(.x))))),
+                   .names = "{.col}-{.fn}"
+                   )
+            ) %>% 
+  # reorganize
+  pivot_longer(cols = everything(),
+               names_to = c("ColNames", ".value"), 
+               names_sep = "-"
+               ) %>% 
+  # make pretty
+  mutate(perc = perc*100,
+         perc = round(perc, digits = 1),
+         sum = paste0('(', sum) %>% paste0(')')) %>% 
+  unite(perc_n, c("perc", "sum"), sep = " ")
+
+# save output for table reporting
+write_csv(prev, "output/ipv_individ_prev.csv")
+
+# display output 
+prev
+```
+Then let's pull prevalence at the couple level. 
+```{r}
+data %>% select(CoupleID, phys_ipv_prev_couple, psych_ipv_prev_couple, sgm_ipv_prev_couple) %>%
+  group_by(CoupleID) %>% 
+  summarize(across(everything(), ~ first(.x))) %>% 
+  ungroup() %>% select(-CoupleID) %>% 
+  frq()
+```
+
+## Mean, median, SD, range 
+
+```{r}
+data %>% 
+  select(IHS_mean, CTS_phys_perp_HR, CTS_psych_perp_HR, CTS_sgm_perp_HR, PANAS_life_neg, PANAS_disc_neg) %>% 
+  summarize(across(everything(), list(mean = ~ mean(.x, na.rm = T),
+                                      median = ~ median(.x, na.rm = T),
+                                      sd = ~ sd(.x, na.rm = T),
+                                      min = ~ min(.x, na.rm = T),
+                                      max = ~ max(.x, na.rm = T)),
+                   .names = "{.col}-{.fn}")
+            ) %>% 
+  pivot_longer(cols = everything(),
+               names_to = c("ColNames", ".value"), 
+               names_sep = "-",
+               ) %>% 
+  mutate(max = round(max, digits = 2)) %>% 
+  unite(range, c("min", "max"), sep = "-")
+```
+TO DO (?): save these descriptives into a table. If included in bivariate correlation table, flip `Colnames` and `.value` arguments above. 
+
+# Reliability
+
+## IHS
+
+```{r}
+data %>% select(IHS_1:IHS_9) %>% alpha()
+```
+```{r}
+data %>% select(IHS_1:IHS_9) %>% omega(plot = F)
+```
+
+
+## CTS2
+
+The reliability functions cannot accommodate missing data on any of the variables. If you do reliability with all 12 physical assault items, it will throw an error for `CTS_phys_weapon_perp` because this case is removed from the analysis. It will run excluding that item: 
+```{r}
+data %>% select(CTS_phys_threw_perp:CTS_phys_kick_perp) %>% na.omit() %>% select(-CTS_phys_weapon_perp) %>% omega(plot = F)
+```
+
+```{r}
+data %>% select(CTS_psych_swore_perp:CTS_psych_threat_perp) %>% omega(plot = F)
+```
+
+```{r}
+data %>% select(CTS_sgm_threatout_perp:CTS_sgm_pda_perp) %>% omega(plot = F)
+```
+
+## PANAS 
+
+Life stressor discussion:
+```{r}
+data %>% select(c("PANAS_life_2", "PANAS_life_4", "PANAS_life_6", "PANAS_life_7", "PANAS_life_8", "PANAS_life_11", "PANAS_life_13", "PANAS_life_15", "PANAS_life_18", "PANAS_life_20")) %>% omega(plot = F)
+```
+
+Discrimination stressor discussion:
+```{r}
+data %>% select(c("PANAS_disc_2", "PANAS_disc_4", "PANAS_disc_6", "PANAS_disc_7", "PANAS_disc_8", "PANAS_disc_11", "PANAS_disc_13", "PANAS_disc_15", "PANAS_disc_18", "PANAS_disc_20")) %>% omega(plot = F)
+```
+
+# Correlations 
+
+Ok so following recommendations from Kenny et al. 2006 (and Griffin & Gonzalez, 1995), we need to do a bivariate version of the intraclass correlation coefficient in order to get 1) regular ICCs for all variables, 2) intrapartner correlations (i.e. within-person) - however note that this still conflates dyad-level variability in those estimates, and 3) inter-partner correlations. 
+
+We can get a Bayesian version of this by following some recommendations from Solomon Kurz on his blog: https://solomonkurz.netlify.app/blog/2019-02-16-bayesian-correlations-let-s-talk-options/
+
+For this, we'll be doing the multivariate version of the model where we put in standardized predictors and specify multivariate correlations, which will essentially just give us a correlation matrix from a brms model (f9 in his post). This will require some data wrangling to get the output in a format suitable for a table. 
+
+First, let's restructure the data into actor and partner variables (which are needed to compute the ICCs and pairwise correlations - see Kenny et al., 2006 + Griffin & Gonzalez, 1995 for more details here), then we standardize each of those variables
+```{r}
+# functions we'll need
+long_to_pw <- function(df, dyadid, var){
+  df %>%
+    group_by({{dyadid}}) %>%
+    mutate("{{var}}_partner" := coalesce(lead({{var}}), lag({{var}}))) %>%
+    ungroup() %>%
+    rename("{{var}}_actor" := {{var}}) %>%
+    relocate(ends_with("_partner"), .after = ends_with("_actor"))
+}
+std <- function(x){
+  (x - mean(x, na.rm = T)) / sd(x, na.rm = T)
+}
+
+# pull out only the variables that we want to report on, convert into actor & partner variables
+corr <- data |> 
+  select(CoupleID, IHS_mean, PANAS_life_neg, PANAS_disc_neg, CTS_phys_perp_HR, CTS_psych_perp_HR, CTS_sgm_perp_HR) 
+
+corr <- long_to_pw(corr, CoupleID, IHS_mean)
+corr <- long_to_pw(corr, CoupleID, PANAS_life_neg)
+corr <- long_to_pw(corr, CoupleID, PANAS_disc_neg)
+corr <- long_to_pw(corr, CoupleID, CTS_phys_perp_HR)
+corr <- long_to_pw(corr, CoupleID, CTS_psych_perp_HR)
+corr <- long_to_pw(corr, CoupleID, CTS_sgm_perp_HR)
+
+# standardized variables
+corr <- corr |>
+  mutate(across(c(IHS_mean_actor:CTS_sgm_perp_HR_partner), std)) 
+```
+
+Next, let's run that model. We can use a weakly regularizing prior on correlation coefficients (it's still pretty wide). 
+```{r, warning = F}
+corr_model <- brm(
+  bf(mvbind(IHS_mean_actor, IHS_mean_partner, PANAS_life_neg_actor, PANAS_life_neg_partner, PANAS_disc_neg_actor, PANAS_disc_neg_partner, CTS_phys_perp_HR_actor, CTS_phys_perp_HR_partner, CTS_psych_perp_HR_actor, CTS_psych_perp_HR_partner, CTS_sgm_perp_HR_actor, CTS_sgm_perp_HR_partner) ~ 0,
+     sigma ~ 0) + set_rescor(rescor = T),
+  prior(lkj(2), class = rescor),
+  data = corr,
+  family = gaussian,
+  seed = 1234,
+  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+  file = "fits/corr_model",
+  file_refit = "on_change"
+)
+```
+
+That's a hell of a lot to work through and so I didn'nt bother to summarize the output here (but it did sample well). Let's wrangle that data into a matrix for reporting. We'll take advantage of the fact that the `matrix()` function in R will split up a single column into a matrix going down the column (e.g., if there are 10 values, values 1-5 go in column1 and then 6-10 go in column2). We'll use this to label the correlation coefficients from the output in the order that we want. I create an Excel sheet with what I wanted the correlation matrix to look like to guide me through this part. Perhaps one day I'll figure out a way to automate a function to do this for me automatically, but today is not that day. 
+
+```{r}
+output <- as_draws_df(corr_model) |> 
+  select(-lprior, -.chain, -.draw, -.iteration, -lp__) |> 
+  pivot_longer(everything()) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89) |> 
+  select(-.width, -.point, -.interval) |> 
+  mutate(across(c("value", ".lower", ".upper"), ~ sub("^(-?)0.", "\\1.", sprintf("%.2f", .)))) |>
+  mutate(.lower = paste0('[', .lower),
+         .lower = paste0(.lower, ','),
+         .upper = paste0(.upper, ']')) |> 
+  unite(r_CrI, c("value", ".lower", ".upper"), sep = " ", remove = T) |> 
+  mutate(id = case_when(
+    ## iccs - these go on the diagonal elements of the matrix
+    name == "rescor__IHSmeanactor__IHSmeanpartner" ~ 1,
+    name == "rescor__PANASlifenegactor__PANASlifenegpartner" ~ 8,
+    name == "rescor__PANASdiscnegactor__PANASdiscnegpartner" ~ 15,
+    name == "rescor__CTSphysperpHRactor__CTSphysperpHRpartner" ~ 22,
+    name == "rescor__CTSpsychperpHRactor__CTSpsychperpHRpartner" ~ 29,
+    name == "rescor__CTSsgmperpHRactor__CTSsgmperpHRpartner" ~ 36,
+    
+    ## number the bottom diagonal of the correlation matrix - this reflects intrapersonal r's
+    # 2-6
+    name == "rescor__IHSmeanactor__PANASlifenegactor" ~ 2,
+    name == "rescor__IHSmeanactor__PANASdiscnegactor" ~ 3,
+    name == "rescor__IHSmeanactor__CTSphysperpHRactor" ~ 4,
+    name == "rescor__IHSmeanactor__CTSpsychperpHRactor" ~ 5,
+    name == "rescor__IHSmeanactor__CTSsgmperpHRactor" ~ 6,
+    
+    # 9-12
+    name == "rescor__PANASlifenegactor__PANASdiscnegactor" ~ 9,
+    name == "rescor__PANASlifenegactor__CTSphysperpHRactor" ~ 10,
+    name == "rescor__PANASlifenegactor__CTSpsychperpHRactor" ~ 11,
+    name == "rescor__PANASlifenegactor__CTSsgmperpHRactor" ~ 12,
+    
+    # 16-18
+    name == "rescor__PANASdiscnegactor__CTSphysperpHRactor" ~ 16,
+    name == "rescor__PANASdiscnegactor__CTSpsychperpHRactor" ~ 17,
+    name == "rescor__PANASdiscnegactor__CTSsgmperpHRactor" ~ 18,
+    
+    # 23 and 24
+    name == "rescor__CTSphysperpHRactor__CTSpsychperpHRactor" ~ 23,
+    name == "rescor__CTSphysperpHRactor__CTSsgmperpHRactor" ~ 24,
+    
+    # 30
+    name == "rescor__CTSpsychperpHRactor__CTSsgmperpHRactor" ~ 30,
+    
+    ## number the upper diagonal of the correlation matrix - this reflects interpersonal r's - this is the same code as the above bottom diagonal section just with the last variable change from "actor" to "partner"
+    name == "rescor__IHSmeanactor__PANASlifenegpartner" ~ 7,
+    name == "rescor__IHSmeanactor__PANASdiscnegpartner" ~ 13,
+    name == "rescor__IHSmeanactor__CTSphysperpHRpartner" ~ 19,
+    name == "rescor__IHSmeanactor__CTSpsychperpHRpartner" ~ 25,
+    name == "rescor__IHSmeanactor__CTSsgmperpHRpartner" ~ 31,
+    
+    name == "rescor__PANASlifenegactor__PANASdiscnegpartner" ~ 14,
+    name == "rescor__PANASlifenegactor__CTSphysperpHRpartner" ~ 20,
+    name == "rescor__PANASlifenegactor__CTSpsychperpHRpartner" ~ 26,
+    name == "rescor__PANASlifenegactor__CTSsgmperpHRpartner" ~ 32,
+    
+    name == "rescor__PANASdiscnegactor__CTSphysperpHRpartner" ~ 21,
+    name == "rescor__PANASdiscnegactor__CTSpsychperpHRpartner" ~ 27,
+    name == "rescor__PANASdiscnegactor__CTSsgmperpHRpartner" ~ 33,
+    
+    name == "rescor__CTSphysperpHRactor__CTSpsychperpHRpartner" ~ 28,
+    name == "rescor__CTSphysperpHRactor__CTSsgmperpHRpartner" ~ 34,
+
+    name == "rescor__CTSpsychperpHRactor__CTSsgmperpHRpartner" ~ 35)) |> 
+  filter(!is.na(id)) |> 
+  arrange(id) 
+
+output_matrix <- output$r_CrI 
+output_matrix <- as.data.frame(matrix(output_matrix, nrow = 6)) |> 
+  mutate(variable = c("is", "na_life", "na_disc", "cts_phys", "cts_psych", "cts_sgm")) |> 
+  relocate(variable, .before = V1) |> 
+  rename(is = V1, na_life = V2, na_disc = V3, cts_phys = V4, cts_psych = V5, cts_sgm = V6)
+output_matrix
+```
+
+Then save this:
+
+```{r}
+write.csv(output_matrix, "output/corr_table1.csv")
+```
+
+## Covariates
+
+For now, let's keep things simple and not include these correlations in the main dissertation document. However, they are important to know for contextualizing results. Let's have a quick look at this, using the `correlation` package from `easystats`. 
+
+First, let's look at covariates on negative affect - this is a "quick & dirty" method, ignonre the significance tests b/c they are inaccurate. 
+```{r}
+corr_na <- data |> 
+  select(NA_life = PANAS_life_neg, 
+         NA_disc = PANAS_disc_neg, 
+         DC_life = GlobalCoping_rc_life, 
+         DC_disc = GlobalCoping_rc_disc, 
+         Sev_life = StressorTopic_sev, 
+         Sev_disc = DiscrimTopic_sev, 
+         CSI = CSI_sum) 
+
+c_na <- correlation(corr_na)
+s_na <- summary(c_na)
+display(s_na)
+```
+
+Next, covariates on IPV:
+```{r}
+corr_ipv <- data |> 
+  select(IS = IHS_mean,
+         CTS_phys = CTS_phys_perp_HR,
+         CTS_psych = CTS_psych_perp_HR,
+         CTS_sgm = CTS_sgm_perp_HR,
+         age = Age,
+         rel_length = rel_length_yrs)
+
+c_ipv <- correlation(corr_ipv)
+s_ipv <- summary(c_ipv)
+display(s_ipv)
+```
+
+# Missing data evaluation
+
+Let's look to see if missing data is meaningfully related to key variables of interest: IHS, IPV perpetration, PANAS, relationship length, age, relationship satisfaction.
+
+```{r}
+data %>% 
+  # 2 couples excluded 
+  filter(missing_CTSphys == F) %>%
+  filter(missing_CTSpsych == F) %>% 
+  filter(missing_CTSsgm == F) %>% 
+  # 2 couples excluded 
+  filter(CoupleID != 1054 | CoupleID != 1138) %>% 
+  # 1 couple excluded
+  filter(missing_PANASlife == F) %>%
+  filter(missing_PANASdisc == F) %>% 
+  # 5 couples excluded
+  filter(missing_GlobalDClife == F) %>% 
+  # 1 couple excluded 
+  filter(missing_GlobalDCdisc == F) |> 
+  # 1 additional couple excluded b/c one partner did not report on race/ethnicity
+  filter(CoupleID != 1083)
+```
+
+Now let's create a variable based on that to see if missingness relates to anything important. This code marks the 11 couples who are missing data on any of the variables of interest, plus 1 couple where one of the partners did not report their race/ethnicity. This leaves us with 72 couples with complete data for this study. 
+```{r}
+data <- data |> 
+  mutate(missing_any = ifelse((missing_CTSphys == T | missing_CTSpsych == T | missing_CTSsgm == T | CoupleID == 1054 | CoupleID == 1138 | missing_PANASlife == T | missing_PANASdisc == T | missing_GlobalDClife == T | missing_GlobalDCdisc == T | CoupleID == 1083), T, F)) 
+frq(data$missing_any)
+```
+
+Next, let's run a series of linear regressions to see if missing any data is related to meaningful differences in our variables of interest. We'll do this in a frequentist framework as these are preliminary analyses and these estimates are likely to be very similar in a Bayesian model. 
+```{r}
+summary(lm(IHS_mean ~ missing_any, data = data))
+
+summary(lm(CTS_phys_perp_HR ~ missing_any, data = data))
+
+summary(lm(CTS_psych_perp_HR ~ missing_any, data = data))
+
+summary(lm(CTS_sgm_perp_HR ~ missing_any, data = data))
+
+summary(lm(PANAS_life_neg ~ missing_any, data = data))
+
+summary(lm(PANAS_disc_neg ~ missing_any, data = data))
+
+summary(lm(CSI_sum ~ missing_any, data = data))
+
+summary(lm(rel_length_yrs ~ missing_any, data = data))
+
+summary(lm(Age ~ missing_any, data = data))
+```
+
+The only reliable effect here was those missing data reported shorter relationships than those not. This is likely not a large concern for this study, as some of the preliminary analyses above did not show that relationship was correlated significantly or strongly with any of the main variables of interest (internalized stigma, negative affect, and IPV). 
+
+For reporting, let's re-run the linear regression on relationship length in `brms`:
+```{r}
+rel_length_missing <- brm(
+  rel_length_yrs ~ 1 + missing_any, 
+  data = data, 
+  family = gaussian,
+  seed = 1234
+)
+summary(rel_length_missing, prob = .89)
+```
+
+# Prior topic discussion 
+
+Let's see whether having previously discussed a stressor topic meaningfully related to post-discusison negative affect. 
+
+For discrimination topic discussions: 
+
+```{r}
+summary(lm(PANAS_disc_neg ~ DiscrimTopic_choice_prior, data = data))
+```
+
+For life stressor topic discussions: 
+
+```{r}
+summary(lm(PANAS_life_neg ~ StressorTopic_choice_prior, data = data))
+```
+

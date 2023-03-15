@@ -1,0 +1,522 @@
+---
+title: "Data Cleaning & Preparation"
+author: "T.J. Sullivan"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    keep_md: TRUE
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This document contains all code relevant for preparing and cleaning the data relevant to this dissertation project. The end of this document will save the prepped & cleaned dataset for any subsequent analyses that need to be done. If anything needs to be changed or added to the dataset, this should be done here. 
+
+First, let's load in the packages that we need to use for this. 
+
+```{r, message = F, warning = F}
+library(tidyverse)
+library(sjmisc)
+```
+
+Let's pull in the initial data:
+
+```{r}
+orig <- readRDS("data/CCS_data_final_2020.01.10.Rds")
+```
+
+# Variables needed
+
+## Demographics & covariates
+
+This code creates a variable denoting race/ethnicity match at the couple level: 
+```{r}
+# This code will create a couple-level demographic variable that denotes match based on race/ethnicity and age. Variables term "match" indicate whether both partners share the same race/ethnicity identities.
+
+# Separate out variables of interest into another dataframe, converts from long to wide to organize at the couple level. 
+match <- dplyr::select(orig, CoupleID, ParticipantID, race_categ_spec) %>% 
+  group_by(CoupleID) %>% 
+  mutate(rownum = row_number()) %>% 
+  ungroup() %>% 
+  pivot_wider(id_cols = CoupleID, names_from = rownum, names_prefix = "race_categ_spec_", values_from = race_categ_spec)
+
+match <- match %>% 
+  mutate(race_match = case_when(
+    (race_categ_spec_1 == 'Non-Hispanic White' & race_categ_spec_2 == 'Non-Hispanic White') ~ 0, # both non-Hispanic White
+    (race_categ_spec_1 == 'Non-Hispanic White') & (race_categ_spec_2 == 'Hispanic/White' | race_categ_spec_2 == 'Hispanic/Latinx' | race_categ_spec_2 == 'Black/African American' | race_categ_spec_2 == 'Asian' | race_categ_spec_2 == 'Native American or Alaska Native' | race_categ_spec_2 == 'Non-Hispanic Multiracial' | race_categ_spec_2 == 'Hispanic Black' | race_categ_spec_2 == 'Hispanic Asian' | race_categ_spec_2 == 'Hispanic Native Hawaiian/Other Pacific Islander' | race_categ_spec_2 == 'Hispanic Native American/Alaska Native' | race_categ_spec_2 == 'Hispanic Multiracial') ~ 1, # mixed (one non-Hispanic White, one BIPOC)
+    (race_categ_spec_1 == 'Hispanic/White' | race_categ_spec_1 == 'Hispanic/Latinx' | race_categ_spec_1 == 'Black/African American' | race_categ_spec_1 == 'Asian' | race_categ_spec_1 == 'Native American or Alaska Native' | race_categ_spec_1 == 'Non-Hispanic Multiracial' | race_categ_spec_1 == 'Hispanic Black' | race_categ_spec_1 == 'Hispanic Asian' | race_categ_spec_1 == 'Hispanic Native Hawaiian/Other Pacific Islander' | race_categ_spec_1 == 'Hispanic Native American/Alaska Native' | race_categ_spec_1 == 'Hispanic Multiracial') & (race_categ_spec_2 == 'Non-Hispanic White') ~ 1, # mixed (one non-Hispanic White, one BIPOC)
+    (race_categ_spec_1 == 'Hispanic/White' | race_categ_spec_1 == 'Hispanic/Latinx' | race_categ_spec_1 == 'Black/African American' | race_categ_spec_1 == 'Asian' | race_categ_spec_1 == 'Native American or Alaska Native' | race_categ_spec_1 == 'Non-Hispanic Multiracial' | race_categ_spec_1 == 'Hispanic Black' | race_categ_spec_1 == 'Hispanic Asian' | race_categ_spec_1 == 'Hispanic Native Hawaiian/Other Pacific Islander' | race_categ_spec_1 == 'Hispanic Native American/Alaska Native' | race_categ_spec_1 == 'Hispanic Multiracial') & (race_categ_spec_2 == 'Hispanic/White' | race_categ_spec_2 == 'Hispanic/Latinx' | race_categ_spec_2 == 'Black/African American' | race_categ_spec_2 == 'Asian' | race_categ_spec_2 == 'Native American or Alaska Native' | race_categ_spec_2 == 'Non-Hispanic Multiracial' | race_categ_spec_2 == 'Hispanic Black' | race_categ_spec_2 == 'Hispanic Asian' | race_categ_spec_2 == 'Hispanic Native Hawaiian/Other Pacific Islander' | race_categ_spec_2 == 'Hispanic Native American/Alaska Native' | race_categ_spec_2 == 'Hispanic Multiracial') ~ 2 # both BIPOC
+  )) %>% 
+  mutate(race_match = recode_factor(race_match,
+                                    `0` = "Both non-Hispanic White",
+                                    `1` = "Mixed (one partner non-Hispanic White, one BIPOC)",
+                                    `2` = "Both BIPOC"))
+
+# Isolate the variable, merge into larger dataset, reorder variables so race_match variable is with other race/ethnicity demo variables. 
+match <- dplyr::select(match, CoupleID, race_match)
+orig <- left_join(orig, match, by = c("CoupleID"))
+rm(match)
+```
+
+Code race/ethnicity, sexual orientation, and gender identity into small variables for analyses:
+```{r}
+orig <- mutate(orig,
+              race_dich = if_else(race_categ == 'Non-Hispanic White', 0, 1),
+              race_dich = recode_factor(race_dich, 
+                                        `0` = 'Non-Hispanic White', 
+                                        `1` = 'BIPOC'),
+              gender_three = case_when(GenderIdent == 'Woman' ~ 0,
+                                       GenderIdent == 'Man' ~ 1,
+                                       (GenderIdent == 'Transgender man (trans man)' | GenderIdent == 'Transgender woman (trans woman)' | GenderIdent == 'Gender non-conforming' | GenderIdent == 'Genderqueer' | GenderIdent == 'Non-binary' | GenderIdent == 'Other (specify)') ~ 2),
+              gender_three = recode_factor(gender_three,
+                                           `0` = 'Cis woman',
+                                           `1` = 'Cis man',
+                                           `2` = 'Gender diverse'),
+              sxlorx_dich = if_else((SxlOrx == 'Gay' | SxlOrx == 'Lesbian'), 0, 1),
+              sxlorx_dich = recode_factor(sxlorx_dich,
+                                      `0` = 'Monosexual',
+                                      `1` = 'Bi+'))
+```
+
+For any discrepant reports about relationship length or cohabitation length, average across the couple here:
+```{r}
+orig <- orig %>%
+  group_by(CoupleID) %>% 
+  mutate(rel_length_mths = mean(RelLength_Tot_Mos, na.rm = T),
+         rel_length_yrs = mean(RelLength_Tot_Yrs, na.rm = T),
+         cohab_length_mths = mean(CohabLength_Tot_Mos, na.rm = T) %>% ifelse(is.nan(.), NA, .),
+         cohab_length_yrs = mean(CohabLength_Tot_Yrs, na.rm = T)  %>% ifelse(is.nan(.), NA, .)) %>% 
+  ungroup() 
+```
+
+
+Select relevant variables in desired order:
+
+```{r}
+data <- orig %>% 
+  select(CoupleID, ParticipantID, 
+         # demographic variables
+         Age, race_categ, race_categ_spec, race_dich, race_match, Educ, Income, Employment, SxlOrx, SxlOrx_Other_Text, SxlOrx_match, sxlorx_dich, GenderIdent, GenderIdent_Other_Text, GenderIdent_match, gender_three, Cohab, cohab_length_mths, cohab_length_yrs, rel_length_mths, rel_length_yrs, 
+         # CSI-16
+         starts_with("CSI"),
+         # IHS
+         starts_with("IHS"),
+         # CTS2
+         starts_with("CTS"),
+         # life stressor discussion variables
+         starts_with("PANAS_life"), StressorTopic, StressorTopic_sev, stressor_type_rc_life, GlobalCoping_rc_life, StressorTopic_choice,
+         # disc stressor discussion variables
+         starts_with("PANAS_disc"), DiscrimTopic, DiscrimTopic_sev, stressor_type_rc_disc, GlobalCoping_rc_disc, DiscrimTopic_choice,
+         # discussion order
+         DiscussionOrder
+         ) %>% 
+  # this takes out the old scores for the CTS2, see below
+  select(-CTS_PsychPerp:-CTS_SGMspecVict_HR)
+```
+
+Quick step to aggregate the self-reported severity ratings for each discussion topic across the couple - in the raw format it's only with the individual whose topic was chosen. If needed, see main outcome analyses code for categorical coding of discussion topics beyond what was specifically written in by the participants.  
+
+```{r}
+data <- data %>% 
+  group_by(CoupleID) %>% 
+  mutate(StressorTopic_sev = mean(StressorTopic_sev, na.rm = T),
+         DiscrimTopic_sev = mean(DiscrimTopic_sev, na.rm = T)) %>% 
+  ungroup()
+```
+
+Note that couple 1057 is missing discrimination topic SR severity rating b/c this was probed by RA and they did not get a severity rating to write down (noted down below as well under missing data).
+
+## CTS2 re-scoring
+
+To have the CTS2 represent an estimate of the number of aggressive acts perpetrated/experienced in the last year (known as frequency scores), the Likert scale of 1-7 needs to be recoded such that responses reflect the midpoint of the acts represented by each response option. For example, 3-5x in the past year would be coded as a 4 acts (and NOT a 3 b/c it is the third option in the scale). Number 6 (More than 20 times in the past year) should be coded as 25 acts.  
+
+There is some controversy of which scoring method is best for the CTS2 (for an example w/ psych aggression: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3576822/) Here, we're going to go with the original Straus et al. 1996 mid-point frequency scoring. This was not done in the original data cleaning syntax, so here is code for that to happen (step by step): 
+
+```{r}
+# set up data frame
+data <- data %>% arrange(ParticipantID) %>% 
+  group_by(CoupleID) %>% 
+  mutate(rownum = row_number()) %>% 
+  ungroup()
+
+# recode midpoints & put these in new columns
+data <- data %>% 
+  mutate(across(CTS_1:CTS.SGM_50,
+                ~ recode(.x, `3` = 4, `4` = 8, `5` = 15, `6` = 25),
+                .names = "{col}_mid"))
+
+# pull out items into separate dataframe to get highest report by either partner, arrange for easy visual check  
+cts <- data %>% select(CoupleID, rownum, CTS_1_mid:CTS.SGM_50_mid) %>% 
+  pivot_wider(id_cols = CoupleID, names_from = rownum, values_from = c(CTS_1_mid:CTS.SGM_50_mid)) %>% 
+  # item 1 & 2: swore
+  mutate(CTS_psych_swore_perp_p1 = if_else(CTS_1_mid_1 > CTS_2_mid_2, CTS_1_mid_1, CTS_2_mid_2),
+         CTS_psych_swore_perp_p2 = if_else(CTS_1_mid_2 > CTS_2_mid_1, CTS_1_mid_2, CTS_2_mid_1)) %>% 
+  relocate(c(CTS_psych_swore_perp_p1, CTS_psych_swore_perp_p2), .after = CTS_2_mid_2) %>% 
+  # item 3 & 4: shouted
+  mutate(CTS_psych_shout_perp_p1 = if_else(CTS_3_mid_1 > CTS_4_mid_2, CTS_3_mid_1, CTS_4_mid_2),
+         CTS_psych_shout_perp_p2 = if_else(CTS_3_mid_2 > CTS_4_mid_1, CTS_3_mid_2, CTS_4_mid_1)) %>% 
+  relocate(c(CTS_psych_shout_perp_p1, CTS_psych_shout_perp_p2), .after = CTS_4_mid_2) %>% 
+  # item 5 & 6: stomped out of house
+  mutate(CTS_psych_stomp_perp_p1 = if_else(CTS_5_mid_1 > CTS_6_mid_2, CTS_5_mid_1, CTS_6_mid_2),
+         CTS_psych_stomp_perp_p2 = if_else(CTS_5_mid_2 > CTS_6_mid_1, CTS_5_mid_2, CTS_6_mid_1)) %>% 
+  relocate(c(CTS_psych_stomp_perp_p1, CTS_psych_stomp_perp_p2), .after = CTS_6_mid_2) %>% 
+  # item 7 & 8: spite
+  mutate(CTS_psych_spite_perp_p1 = if_else(CTS_7_mid_1 > CTS_8_mid_2, CTS_7_mid_1, CTS_8_mid_2),
+         CTS_psych_spite_perp_p2 = if_else(CTS_7_mid_2 > CTS_8_mid_1, CTS_7_mid_2, CTS_8_mid_1)) %>% 
+  relocate(c(CTS_psych_spite_perp_p1, CTS_psych_spite_perp_p2), .after = CTS_8_mid_2) %>% 
+  # item 9 & 10: insults
+  mutate(CTS_psych_insult_perp_p1 = if_else(CTS_9_mid_1 > CTS_10_mid_2, CTS_9_mid_1, CTS_10_mid_2),
+         CTS_psych_insult_perp_p2 = if_else(CTS_9_mid_2 > CTS_10_mid_1, CTS_9_mid_2, CTS_10_mid_1)) %>% 
+  relocate(c(CTS_psych_insult_perp_p1, CTS_psych_insult_perp_p2), .after = CTS_10_mid_2) %>% 
+  # item 11 & 12: destroy
+  mutate(CTS_psych_destroy_perp_p1 = if_else(CTS_11_mid_1 > CTS_12_mid_2, CTS_11_mid_1, CTS_12_mid_2),
+         CTS_psych_destroy_perp_p2 = if_else(CTS_11_mid_2 > CTS_12_mid_1, CTS_11_mid_2, CTS_12_mid_1)) %>% 
+  relocate(c(CTS_psych_destroy_perp_p1, CTS_psych_destroy_perp_p2), .after = CTS_12_mid_2) %>% 
+  # item 13 & 14: lousy
+  mutate(CTS_psych_lousy_perp_p1 = if_else(CTS_13_mid_1 > CTS_14_mid_2, CTS_13_mid_1, CTS_14_mid_2),
+         CTS_psych_lousy_perp_p2 = if_else(CTS_13_mid_2 > CTS_14_mid_1, CTS_13_mid_2, CTS_14_mid_1)) %>% 
+  relocate(c(CTS_psych_lousy_perp_p1, CTS_psych_lousy_perp_p2), .after = CTS_14_mid_2) %>% 
+  # item 15 & 16: threat
+  mutate(CTS_psych_threat_perp_p1 = if_else(CTS_15_mid_1 > CTS_16_mid_2, CTS_15_mid_1, CTS_16_mid_2),
+         CTS_psych_threat_perp_p2 = if_else(CTS_15_mid_2 > CTS_16_mid_1, CTS_15_mid_2, CTS_16_mid_1)) %>% 
+  relocate(c(CTS_psych_threat_perp_p1, CTS_psych_threat_perp_p2), .after = CTS_16_mid_2) %>% 
+  # item 17 & 18: threw smthg
+  mutate(CTS_phys_threw_perp_p1 = if_else(CTS_17_mid_1 > CTS_18_mid_2, CTS_17_mid_1, CTS_18_mid_2),
+         CTS_phys_threw_perp_p2 = if_else(CTS_17_mid_2 > CTS_18_mid_1, CTS_17_mid_2, CTS_18_mid_1)) %>% 
+  relocate(c(CTS_phys_threw_perp_p1, CTS_phys_threw_perp_p2), .after = CTS_18_mid_2) %>% 
+  # item 19 & 20: twisted arm or hair 
+  mutate(CTS_phys_twist_perp_p1 = if_else(CTS_19_mid_1 > CTS_20_mid_2, CTS_19_mid_1, CTS_20_mid_2),
+         CTS_phys_twist_perp_p2 = if_else(CTS_19_mid_2 > CTS_20_mid_1, CTS_19_mid_2, CTS_20_mid_1)) %>% 
+  relocate(c(CTS_phys_twist_perp_p1, CTS_phys_twist_perp_p2), .after = CTS_20_mid_2) %>% 
+  # item 21 & 22: pushed or shoved
+  mutate(CTS_phys_push_perp_p1 = if_else(CTS_21_mid_1 > CTS_22_mid_2, CTS_21_mid_1, CTS_22_mid_2),
+         CTS_phys_push_perp_p2 = if_else(CTS_21_mid_2 > CTS_22_mid_1, CTS_21_mid_2, CTS_22_mid_1)) %>% 
+  relocate(c(CTS_phys_push_perp_p1, CTS_phys_push_perp_p2), .after = CTS_22_mid_2) %>% 
+  # item 23 & 24: grabbed
+  mutate(CTS_phys_grab_perp_p1 = if_else(CTS_23_mid_1 > CTS_24_mid_2, CTS_23_mid_1, CTS_24_mid_2),
+         CTS_phys_grab_perp_p2 = if_else(CTS_23_mid_2 > CTS_24_mid_1, CTS_23_mid_2, CTS_24_mid_1)) %>% 
+  relocate(c(CTS_phys_grab_perp_p1, CTS_phys_grab_perp_p2), .after = CTS_24_mid_2) %>%
+  # item 25 & 26: slapped
+  mutate(CTS_phys_slap_perp_p1 = if_else(CTS_25_mid_1 > CTS_26_mid_2, CTS_25_mid_1, CTS_26_mid_2),
+         CTS_phys_slap_perp_p2 = if_else(CTS_25_mid_2 > CTS_26_mid_1, CTS_25_mid_2, CTS_26_mid_1)) %>% 
+  relocate(c(CTS_phys_slap_perp_p1, CTS_phys_slap_perp_p2), .after = CTS_26_mid_2) %>% 
+  # item 27 & 28: weapon
+  mutate(CTS_phys_weapon_perp_p1 = if_else(CTS_27_mid_1 > CTS_28_mid_2, CTS_27_mid_1, CTS_28_mid_2),
+         CTS_phys_weapon_perp_p2 = if_else(CTS_27_mid_2 > CTS_28_mid_1, CTS_27_mid_2, CTS_28_mid_1)) %>% 
+  relocate(c(CTS_phys_weapon_perp_p1, CTS_phys_weapon_perp_p2), .after = CTS_28_mid_2) %>% 
+  # item 29 & 30: punch 
+  mutate(CTS_phys_punch_perp_p1 = if_else(CTS_29_mid_1 > CTS_30_mid_2, CTS_29_mid_1, CTS_30_mid_2),
+         CTS_phys_punch_perp_p2 = if_else(CTS_29_mid_2 > CTS_30_mid_1, CTS_29_mid_2, CTS_30_mid_1)) %>% 
+  relocate(c(CTS_phys_punch_perp_p1, CTS_phys_punch_perp_p2), .after = CTS_30_mid_2) %>% 
+  # item 31 & 32: choke
+  mutate(CTS_phys_choke_perp_p1 = if_else(CTS_31_mid_1 > CTS_32_mid_2, CTS_31_mid_1, CTS_32_mid_2),
+         CTS_phys_choke_perp_p2 = if_else(CTS_31_mid_2 > CTS_32_mid_1, CTS_31_mid_2, CTS_32_mid_1)) %>% 
+  relocate(c(CTS_phys_choke_perp_p1, CTS_phys_choke_perp_p2), .after = CTS_32_mid_2) %>% 
+  # item 33 & 34: slam
+  mutate(CTS_phys_slam_perp_p1 = if_else(CTS_33_mid_1 > CTS_34_mid_2, CTS_33_mid_1, CTS_34_mid_2),
+         CTS_phys_slam_perp_p2 = if_else(CTS_33_mid_2 > CTS_34_mid_1, CTS_33_mid_2, CTS_34_mid_1)) %>% 
+  relocate(c(CTS_phys_slam_perp_p1, CTS_phys_slam_perp_p2), .after = CTS_34_mid_2) %>% 
+  # item 35 & 36: beat
+  mutate(CTS_phys_beat_perp_p1 = if_else(CTS_35_mid_1 > CTS_36_mid_2, CTS_35_mid_1, CTS_36_mid_2),
+         CTS_phys_beat_perp_p2 = if_else(CTS_35_mid_2 > CTS_36_mid_1, CTS_35_mid_2, CTS_36_mid_1)) %>% 
+  relocate(c(CTS_phys_beat_perp_p1, CTS_phys_beat_perp_p2), .after = CTS_36_mid_2) %>% 
+  # item 37 & 38: burned or scalded
+  mutate(CTS_phys_burn_perp_p1 = if_else(CTS_37_mid_1 > CTS_38_mid_2, CTS_37_mid_1, CTS_38_mid_2),
+         CTS_phys_burn_perp_p2 = if_else(CTS_37_mid_2 > CTS_38_mid_1, CTS_37_mid_2, CTS_38_mid_1)) %>% 
+  relocate(c(CTS_phys_burn_perp_p1, CTS_phys_burn_perp_p2), .after = CTS_38_mid_2) %>% 
+  # item 39 & 40: kicked
+  mutate(CTS_phys_kick_perp_p1 = if_else(CTS_39_mid_1 > CTS_40_mid_2, CTS_39_mid_1, CTS_40_mid_2),
+         CTS_phys_kick_perp_p2 = if_else(CTS_39_mid_2 > CTS_40_mid_1, CTS_39_mid_2, CTS_40_mid_1)) %>% 
+  relocate(c(CTS_phys_kick_perp_p1, CTS_phys_kick_perp_p2), .after = CTS_40_mid_2) %>% 
+  # item 41 & 42: threatout
+  mutate(CTS_sgm_threatout_perp_p1 = if_else(CTS.SGM_41_mid_1 > CTS.SGM_42_mid_2, CTS.SGM_41_mid_1, CTS.SGM_42_mid_2),
+         CTS_sgm_threatout_perp_p2 = if_else(CTS.SGM_41_mid_2 > CTS.SGM_42_mid_1, CTS.SGM_41_mid_2, CTS.SGM_42_mid_1)) %>% 
+  relocate(c(CTS_sgm_threatout_perp_p1, CTS_sgm_threatout_perp_p2), .after = CTS.SGM_42_mid_2) %>% 
+  # item 43 & 44: told how alone they would be without me
+  mutate(CTS_sgm_alone_perp_p1 = if_else(CTS.SGM_43_mid_1 > CTS.SGM_44_mid_2, CTS.SGM_43_mid_1, CTS.SGM_44_mid_2),
+         CTS_sgm_alone_perp_p2 = if_else(CTS.SGM_43_mid_2 > CTS.SGM_44_mid_1, CTS.SGM_43_mid_2, CTS.SGM_44_mid_1)) %>% 
+  relocate(c(CTS_sgm_alone_perp_p1, CTS_sgm_alone_perp_p2), .after = CTS.SGM_44_mid_2) %>% 
+  # item 45 & 46: rumor
+  mutate(CTS_sgm_rumor_perp_p1 = if_else(CTS.SGM_45_mid_1 > CTS.SGM_46_mid_2, CTS.SGM_45_mid_1, CTS.SGM_46_mid_2),
+         CTS_sgm_rumor_perp_p2 = if_else(CTS.SGM_45_mid_2 > CTS.SGM_46_mid_1, CTS.SGM_45_mid_2, CTS.SGM_46_mid_1)) %>% 
+  relocate(c(CTS_sgm_rumor_perp_p1, CTS_sgm_rumor_perp_p2), .after = CTS.SGM_46_mid_2) %>% 
+  # item 47 & 48: outed
+  mutate(CTS_sgm_out_perp_p1 = if_else(CTS.SGM_47_mid_1 > CTS.SGM_48_mid_2, CTS.SGM_47_mid_1, CTS.SGM_48_mid_2),
+         CTS_sgm_out_perp_p2 = if_else(CTS.SGM_47_mid_2 > CTS.SGM_48_mid_1, CTS.SGM_47_mid_2, CTS.SGM_48_mid_1)) %>% 
+  relocate(c(CTS_sgm_out_perp_p1, CTS_sgm_out_perp_p2), .after = CTS.SGM_48_mid_2) %>% 
+  # item 49 & 50: pda
+  mutate(CTS_sgm_pda_perp_p1 = if_else(CTS.SGM_49_mid_1 > CTS.SGM_50_mid_2, CTS.SGM_49_mid_1, CTS.SGM_50_mid_2),
+         CTS_sgm_pda_perp_p2 = if_else(CTS.SGM_49_mid_2 > CTS.SGM_50_mid_1, CTS.SGM_49_mid_2, CTS.SGM_50_mid_1)) %>% 
+  relocate(c(CTS_sgm_pda_perp_p1, CTS_sgm_pda_perp_p2), .after = CTS.SGM_50_mid_2)
+
+# only select the variables that contain the highest report of perpetration & restructure for merging back with data
+cts <- cts %>% select(CoupleID, starts_with("CTS_psych"), starts_with("CTS_phys"), starts_with("CTS_sgm")) %>% 
+  rename_with(function(x){gsub("_p1", ".partner_1", x)}) %>% 
+  rename_with(function(x){gsub("_p2", ".partner_2", x)}) %>% 
+  pivot_longer(cols = -CoupleID, names_to = c(".value", "rownum"), names_sep = ".partner_", names_transform = list(rownum = as.integer))
+
+# merge highest report variables with main data 
+data <- data %>% 
+  left_join(cts, by = c("CoupleID", "rownum"))
+
+# remove unneeded column 
+rm(cts)
+```
+
+Now that we have the variables set up, create sum scores for frequency of IPV perpetrated over past-year:
+```{r}
+data <- data %>%  
+  row_sums(starts_with("CTS_phys"), n = 0.7) %>% 
+  rename(CTS_phys_perp_HR = rowsums)
+
+data <- data %>% 
+  row_sums(starts_with("CTS_psych"), n = 0.7) %>% 
+  rename(CTS_psych_perp_HR = rowsums)
+
+data <- data %>%
+  row_sums(starts_with("CTS_sgm"), n = 0.7) %>% 
+  rename(CTS_sgm_perp_HR = rowsums)
+```
+
+Finally, create variables marking prevalence (true = an act of aggression was reported):
+```{r}
+# individual-level prevalence
+data <- data %>% 
+  mutate(psych_ipv_prev = if_any(starts_with("CTS_psych"), ~ if_else(.x > 0, T, F)),
+         phys_ipv_prev = if_any(starts_with("CTS_phys"), ~ if_else(.x > 0, T, F)),
+         sgm_ipv_prev = if_any(starts_with("CTS_sgm"), ~ if_else(.x > 0, T, F))) 
+
+# couple-level prevalence 
+prev <- data %>% select(CoupleID, psych_ipv_prev:sgm_ipv_prev) %>% 
+  group_by(CoupleID) %>% 
+  mutate(num = row_number()) %>% 
+  ungroup() %>% 
+  pivot_wider(id_cols = CoupleID, names_from = num, values_from = c(psych_ipv_prev:sgm_ipv_prev)) %>% 
+  mutate(psych_ipv_prev_couple = case_when(
+    (psych_ipv_prev_1 == F & psych_ipv_prev_2 == F) ~ 0,
+    ((psych_ipv_prev_1 == F & psych_ipv_prev_2 == T) | (psych_ipv_prev_1 == T & psych_ipv_prev_2 == F)) ~ 1, 
+    (psych_ipv_prev_1 == T & psych_ipv_prev_2 == T) ~ 2)) %>% 
+  mutate(psych_ipv_prev_couple = recode_factor(psych_ipv_prev_couple, 
+                                               `0` = "no violence",
+                                               `1` = "unidirectional",
+                                               `2` = "bidirectional")) %>%
+  mutate(phys_ipv_prev_couple = case_when(
+    (phys_ipv_prev_1 == F & phys_ipv_prev_2 == F) ~ 0,
+    ((phys_ipv_prev_1 == F & phys_ipv_prev_2 == T) | (phys_ipv_prev_1 == T & phys_ipv_prev_2 == F)) ~ 1, 
+    (phys_ipv_prev_1 == T & phys_ipv_prev_2 == T) ~ 2)) %>% 
+  mutate(phys_ipv_prev_couple = recode_factor(phys_ipv_prev_couple, 
+                                               `0` = "no violence",
+                                               `1` = "unidirectional",
+                                               `2` = "bidirectional")) %>%
+  mutate(sgm_ipv_prev_couple = case_when(
+    (sgm_ipv_prev_1 == F & sgm_ipv_prev_2 == F) ~ 0,
+    ((sgm_ipv_prev_1 == F & sgm_ipv_prev_2 == T) | (sgm_ipv_prev_1 == T & sgm_ipv_prev_2 == F)) ~ 1, 
+    (sgm_ipv_prev_1 == T & sgm_ipv_prev_2 == T) ~ 2)) %>% 
+  mutate(sgm_ipv_prev_couple = recode_factor(sgm_ipv_prev_couple, 
+                                               `0` = "no violence",
+                                               `1` = "unidirectional",
+                                               `2` = "bidirectional")) %>%
+  select(CoupleID, psych_ipv_prev_couple:sgm_ipv_prev_couple)
+
+data <- data %>% left_join(prev, by = "CoupleID") 
+
+rm(prev)
+```
+
+# Prior discussion of discussion topics
+
+For the original publication of this project, we did some by-hand coding of whether the topics chosen for discussions were previously discussed between partners. That was the case for the majority of the conversations. This file is saved under "CCS_data_prior_discussion" under the "Data" folder - we'll go ahead and pull that here and use that variable to be merged into the main dataframe here. 
+
+```{r}
+priordisc <- readRDS("data/CCS_data_prior_discussion.Rds")
+
+data <- data |> 
+  left_join(priordisc, by = "CoupleID")
+
+rm(priordisc)
+```
+
+
+# Missing data 
+
+This section contains code to mark who is missing data on each of the key variables of interest for analyses. 
+
+## IHS 
+
+There are no missing responses on the IHS: 
+```{r}
+data <- data %>% mutate(missing_IHS = ifelse(is.na(IHS_mean), T, F))
+data %>% filter(missing_IHS == T) %>% select(CoupleID, ParticipantID)
+```
+
+## CTS
+
+We see that 4 people are missing responses on the CTS2, which is two couples. The same two couples: 1025 and 1128 are missing data on all subscales of the CTS2. This is 2.38% of the sample. 
+
+Physical:
+```{r}
+data <- data %>% mutate(missing_CTSphys = ifelse(is.na(CTS_phys_perp_HR), T, F))
+data %>% filter(missing_CTSphys == T) %>% select(CoupleID, ParticipantID)
+```
+Psychological:
+```{r}
+data <- data %>% mutate(missing_CTSpsych = ifelse(is.na(CTS_psych_perp_HR), T, F))
+data %>% filter(missing_CTSpsych == T) %>% select(CoupleID, ParticipantID)
+```
+
+SGM-specific:
+```{r}
+data <- data %>% mutate(missing_CTSsgm = ifelse(is.na(CTS_sgm_perp_HR), T, F))
+data %>% filter(missing_CTSsgm == T) %>% select(CoupleID, ParticipantID)
+```
+This leaves us with an analytic sample of 82 couples for Aim 2 analyses. 
+
+## Discussions
+
+Next, we have the two couples that did not complete the stressor discussions due to technical difficulties. We were unable to re-schedule these participants. Therefore, they should be excluded from Aim 2 and Aim 3 analyses. This is couple 1054 and 1138.  
+
+## PANAS
+
+There are 3 couples who do not have PANAS data. Two of these are the ones who did not complete the discussions. Records confirmed that couple 1021 did not have the PANAS due to a technical error. 
+
+Life stressor discussion:
+
+```{r}
+data <- data %>% mutate(missing_PANASlife = ifelse(is.na(PANAS_life_neg), T, F))
+data %>% filter(missing_PANASlife == T) %>% select(CoupleID, ParticipantID)
+```
+
+Discrimination stressor discussion:
+```{r}
+data <- data %>% mutate(missing_PANASdisc = ifelse(is.na(PANAS_disc_neg), T, F))
+data %>% filter(missing_PANASdisc == T) %>% select(CoupleID, ParticipantID)
+```
+
+Of note, there were 2 participants who were missing just 1 item on the PANAS after the life stressor discussion (PTID 192 for item 4 and PTID 243 for item 18)
+```{r}
+data %>% select(CoupleID, ParticipantID, PANAS_life_neg, c("PANAS_life_2", "PANAS_life_4", "PANAS_life_6", "PANAS_life_7", "PANAS_life_8", "PANAS_life_11", "PANAS_life_13", "PANAS_life_15", "PANAS_life_18", "PANAS_life_20")) %>% 
+  filter(if_any(.fns = ~ is.na(.x))) %>% 
+  # filter out couples that did not have PANAS
+  filter(CoupleID != 1021 & CoupleID != 1054 & CoupleID != 1138)
+```
+Because we used sum scores, we went ahead and imputed these responses as 1, which was the mode for both participants here. 
+
+```{r}
+# replace values
+data <- data %>% 
+  mutate(PANAS_life_4 = ifelse(ParticipantID == 192, 1, PANAS_life_4),
+         PANAS_life_18 = ifelse(ParticipantID == 243, 1, PANAS_life_18)) 
+
+# recalculate sum totals
+data$PANAS_life_neg <- rowSums(data[c("PANAS_life_2", "PANAS_life_4", "PANAS_life_6", "PANAS_life_7", "PANAS_life_8", "PANAS_life_11", "PANAS_life_13", "PANAS_life_15", "PANAS_life_18", "PANAS_life_20")], na.rm = TRUE)
+
+# above code sets missing sums to 0, so this recodes couples with missing data to NA
+data <- data %>% mutate(PANAS_life_neg = ifelse((CoupleID == 1021 | CoupleID == 1054 | CoupleID == 1138), NA_real_, PANAS_life_neg))
+```
+## CSI
+
+No missing data on the CSI covariate. 
+```{r}
+data <- data %>% mutate(missing_CSI = ifelse(is.na(CSI_sum), T, F))
+data %>% filter(missing_CSI == T) %>% select(CoupleID, ParticipantID)
+```
+
+## Global DC during discussions 
+
+7 couples did not have global dyadic coping data for the life stressor discussion. 2 of these are the ones that did not complete any discussions.
+
+```{r}
+data <- data %>% mutate(missing_GlobalDClife = ifelse(is.na(GlobalCoping_rc_life), T, F))
+data %>% filter(missing_GlobalDClife == T) %>% select(CoupleID, ParticipantID)
+```
+There was only 1 additional couples who had missing global dyadic coping data for the discrimination stressor discussions:
+
+```{r}
+data <- data %>% mutate(missing_GlobalDCdisc = ifelse(is.na(GlobalCoping_rc_disc), T, F))
+data %>% filter(missing_GlobalDClife != T & missing_GlobalDCdisc == T) %>% select(CoupleID, ParticipantID)
+```
+
+## Discussion topic severity
+
+There is one couple - 1057 - that had missing data on the self-reported discrimination topic severity because this was not collected by the RA when they probed about discussion topics to list. 
+
+Life stressor severity: 
+```{r}
+data %>% select(CoupleID, ParticipantID, StressorTopic_sev) %>% filter(is.na(StressorTopic_sev)) %>% select(CoupleID, ParticipantID)
+```
+Discrimination stressor severity:
+```{r}
+data %>% select(CoupleID, ParticipantID, DiscrimTopic_sev) %>% filter(is.na(DiscrimTopic_sev)) %>% select(CoupleID, ParticipantID)
+```
+
+Let's take a look at the observed stressor expression severity rating (on a similar scale). 
+```{r}
+orig %>% filter(CoupleID == 1057) %>% select(CoupleID, ParticipantID, StressExpSev_rc_disc, DiscrimTopic_choice)
+```
+
+And then the mean of the self-reported discrimination stressor topic severity ratings. 
+
+```{r}
+mean(data$DiscrimTopic_sev, na.rm = T)
+```
+
+Both are at a 3, so let's go ahead and impute that value in for Couple 1057. We now see there is no missing data for that variable. 
+
+```{r}
+data <- data %>% mutate(DiscrimTopic_sev = ifelse(CoupleID == 1057, 3, DiscrimTopic_sev))
+
+data %>% select(CoupleID, ParticipantID, DiscrimTopic_sev) %>% filter(is.na(DiscrimTopic_sev))
+```
+
+N for Aim 1 analyses is 82 couples (n = 164 individuals):
+```{r}
+data %>% 
+  # 2 couples excluded 
+  filter(missing_CTSphys == F) %>%
+  filter(missing_CTSpsych == F) %>% 
+  filter(missing_CTSsgm == F) 
+```
+N for Aim 2 analyses is 79 (n = 158 individs). 
+```{r}
+data %>% 
+  # 2 couples excluded 
+  filter(missing_CTSphys == F) %>%
+  filter(missing_CTSpsych == F) %>% 
+  filter(missing_CTSsgm == F) %>% 
+  # 2 couples excluded 
+  filter(CoupleID != 1054 | CoupleID != 1138) %>% 
+  # 1 couple excluded
+  filter(missing_PANASlife == F) %>%
+  filter(missing_PANASdisc == F)
+```
+
+N for analyses with covariates is 73 couples (n = 146 individs):
+```{r}
+data %>% 
+  # 2 couples excluded 
+  filter(missing_CTSphys == F) %>%
+  filter(missing_CTSpsych == F) %>% 
+  filter(missing_CTSsgm == F) %>% 
+  # 2 couples excluded 
+  filter(CoupleID != 1054 | CoupleID != 1138) %>% 
+  # 1 couple excluded
+  filter(missing_PANASlife == F) %>%
+  filter(missing_PANASdisc == F) %>% 
+  # 5 couples excluded
+  filter(missing_GlobalDClife == F) %>% 
+  # 1 couple excluded 
+  filter(missing_GlobalDCdisc == F)
+```
+
+# Saving data file for analyses
+
+Finally, let's save the data in a file. 
+
+```{r}
+saveRDS(data, file = "data/CCS_data_cleaned.rds")
+```
+
+

@@ -282,6 +282,13 @@ Discrimination stressor discussion:
 data %>% select(c("PANAS_disc_2", "PANAS_disc_4", "PANAS_disc_6", "PANAS_disc_7", "PANAS_disc_8", "PANAS_disc_11", "PANAS_disc_13", "PANAS_disc_15", "PANAS_disc_18", "PANAS_disc_20")) %>% omega(plot = F)
 ```
 
+## CSI
+
+```{r}
+data %>% select(CSI_1:CSI_10, CSI_11r, CSI_12, CSI_13r, CSI_14r, CSI_15, CSI_16r) %>% omega(plot = F)
+```
+
+
 # Correlations 
 
 Ok so following recommendations from Kenny et al. 2006 (and Griffin & Gonzalez, 1995), we need to do a bivariate version of the intraclass correlation coefficient in order to get 1) regular ICCs for all variables, 2) intrapartner correlations (i.e. within-person) - however note that this still conflates dyad-level variability in those estimates, and 3) inter-partner correlations. 

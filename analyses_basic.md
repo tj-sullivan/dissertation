@@ -1,7 +1,7 @@
 analyses_basic
 ================
 T.J. Sullivan
-2023-03-15
+2023-04-28
 
 This document contains all of the basic analyses to report, including
 reliability, descriptives, and correlations.
@@ -468,7 +468,7 @@ prev
     ##  8 CTS_phys_punch_perp  4.3 (7)  
     ##  9 CTS_phys_choke_perp  2.4 (4)  
     ## 10 CTS_phys_slam_perp   3 (5)    
-    ## # … with 18 more rows
+    ## # ℹ 18 more rows
 
 Then let’s pull prevalence at the couple level.
 
@@ -682,13 +682,13 @@ data %>% select(CTS_phys_threw_perp:CTS_phys_kick_perp) %>% na.omit() %>% select
 
     ## I was unable to calculate the factor score weights, factor loadings used instead
 
-    ## Warning in GPFoblq(L, Tmat = Tmat, normalize = normalize, eps = eps, maxit =
+    ## Warning in GPFoblq(A, Tmat = Tmat, normalize = normalize, eps = eps, maxit =
     ## maxit, : convergence not obtained in GPFoblq. 1000 iterations used.
 
-    ## Warning in GPFoblq(L, Tmat = Tmat, normalize = normalize, eps = eps, maxit =
+    ## Warning in GPFoblq(A, Tmat = Tmat, normalize = normalize, eps = eps, maxit =
     ## maxit, : Matrix was not positive definite, smoothing was done
 
-    ## Warning in GPFoblq(L, Tmat = Tmat, normalize = normalize, eps = eps, maxit =
+    ## Warning in GPFoblq(A, Tmat = Tmat, normalize = normalize, eps = eps, maxit =
     ## maxit, : Matrix was not positive definite, smoothing was done
 
     ## Omega 
@@ -1005,6 +1005,78 @@ data %>% select(c("PANAS_disc_2", "PANAS_disc_4", "PANAS_disc_6", "PANAS_disc_7"
     ## Omega general for total scores and subscales  0.68 0.51 0.46 0.50
     ## Omega group for total scores and subscales    0.15 0.29 0.35 0.25
 
+## CSI
+
+``` r
+data %>% select(CSI_1:CSI_10, CSI_11r, CSI_12, CSI_13r, CSI_14r, CSI_15, CSI_16r) %>% omega(plot = F)
+```
+
+    ## Omega 
+    ## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
+    ##     digits = digits, title = title, sl = sl, labels = labels, 
+    ##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
+    ##     covar = covar)
+    ## Alpha:                 0.95 
+    ## G.6:                   0.96 
+    ## Omega Hierarchical:    0.83 
+    ## Omega H asymptotic:    0.86 
+    ## Omega Total            0.96 
+    ## 
+    ## Schmid Leiman Factor loadings greater than  0.2 
+    ##            g   F1*   F2*   F3*   h2   u2   p2
+    ## CSI_1   0.58                   0.39 0.61 0.87
+    ## CSI_2   0.71  0.22             0.58 0.42 0.86
+    ## CSI_3   0.79  0.37             0.76 0.24 0.82
+    ## CSI_4   0.80  0.35             0.77 0.23 0.84
+    ## CSI_5   0.82  0.30             0.77 0.23 0.86
+    ## CSI_6   0.74  0.39             0.70 0.30 0.77
+    ## CSI_7   0.77  0.37             0.73 0.27 0.81
+    ## CSI_8   0.63  0.39             0.59 0.41 0.68
+    ## CSI_9   0.65  0.25  0.20       0.53 0.47 0.81
+    ## CSI_10  0.82  0.33             0.79 0.21 0.85
+    ## CSI_11r 0.49              0.37 0.42 0.58 0.58
+    ## CSI_12  0.69        0.33       0.62 0.38 0.77
+    ## CSI_13r 0.71              0.39 0.68 0.32 0.74
+    ## CSI_14r 0.67        0.37       0.61 0.39 0.73
+    ## CSI_15  0.48        0.40       0.40 0.60 0.58
+    ## CSI_16r 0.82        0.26  0.21 0.82 0.18 0.83
+    ## 
+    ## With Sums of squares  of:
+    ##    g  F1*  F2*  F3* 
+    ## 7.98 1.11 0.65 0.43 
+    ## 
+    ## general/max  7.19   max/min =   2.6
+    ## mean percent general =  0.78    with sd =  0.09 and cv of  0.12 
+    ## Explained Common Variance of the general factor =  0.79 
+    ## 
+    ## The degrees of freedom are 75  and the fit is  0.7 
+    ## The number of observations was  168  with Chi Square =  110.6  with prob <  0.0047
+    ## The root mean square of the residuals is  0.02 
+    ## The df corrected root mean square of the residuals is  0.03
+    ## RMSEA index =  0.053  and the 10 % confidence intervals are  0.03 0.074
+    ## BIC =  -273.69
+    ## 
+    ## Compare this with the adequacy of just a general factor and no group factors
+    ## The degrees of freedom for just the general factor are 104  and the fit is  1.73 
+    ## The number of observations was  168  with Chi Square =  276.66  with prob <  1.3e-17
+    ## The root mean square of the residuals is  0.09 
+    ## The df corrected root mean square of the residuals is  0.1 
+    ## 
+    ## RMSEA index =  0.099  and the 10 % confidence intervals are  0.086 0.114
+    ## BIC =  -256.23 
+    ## 
+    ## Measures of factor score adequacy             
+    ##                                                  g   F1*  F2*   F3*
+    ## Correlation of scores with factors            0.92  0.56 0.71  0.61
+    ## Multiple R square of scores with factors      0.84  0.32 0.50  0.37
+    ## Minimum correlation of factor score estimates 0.68 -0.37 0.00 -0.26
+    ## 
+    ##  Total, General and Subset omega for each subset
+    ##                                                  g  F1*  F2*  F3*
+    ## Omega total for total scores and subscales    0.96 0.94 0.82 0.69
+    ## Omega general for total scores and subscales  0.83 0.80 0.65 0.49
+    ## Omega group for total scores and subscales    0.08 0.15 0.17 0.20
+
 # Correlations
 
 Ok so following recommendations from Kenny et al. 2006 (and Griffin &
@@ -1286,25 +1358,25 @@ data %>%
 ```
 
     ## # A tibble: 144 × 255
-    ##    CoupleID Partici…¹   Age race_…² race_…³ race_…⁴ race_…⁵ Educ  Income Emplo…⁶
-    ##       <dbl>     <dbl> <dbl> <fct>   <fct>   <fct>   <fct>   <fct> <fct>  <fct>  
-    ##  1     1002       103    30 Hispan… Hispan… BIPOC   Both B… Mast… $120,… Full-t…
-    ##  2     1002       104    29 Asian   Asian   BIPOC   Both B… Mast… $75,0… Full-t…
-    ##  3     1006       111    21 Hispan… Hispan… BIPOC   Mixed … Some… Under… Part-t…
-    ##  4     1006       112    21 Non-Hi… Non-Hi… Non-Hi… Mixed … Asso… $12,0… Part-t…
-    ##  5     1007       113    24 Multir… Non-Hi… BIPOC   Mixed … Asso… $24,0… Part-t…
-    ##  6     1007       114    25 Non-Hi… Non-Hi… Non-Hi… Mixed … Some… Under… Part-t…
-    ##  7     1009       117    20 Non-Hi… Non-Hi… Non-Hi… Mixed … Some… $12,0… Unempl…
-    ##  8     1009       118    26 Hispan… Hispan… BIPOC   Mixed … Asso… $12,0… Part-t…
-    ##  9     1011       121    21 Non-Hi… Non-Hi… Non-Hi… Both n… Some… Under… Part-t…
-    ## 10     1011       122    20 Non-Hi… Non-Hi… Non-Hi… Both n… Some… Under… Part-t…
-    ## # … with 134 more rows, 245 more variables: SxlOrx <fct>,
-    ## #   SxlOrx_Other_Text <chr>, SxlOrx_match <fct>, sxlorx_dich <fct>,
-    ## #   GenderIdent <fct>, GenderIdent_Other_Text <chr>, GenderIdent_match <fct>,
-    ## #   gender_three <fct>, Cohab <fct>, cohab_length_mths <dbl>,
-    ## #   cohab_length_yrs <dbl>, rel_length_mths <dbl>, rel_length_yrs <dbl>,
-    ## #   CSI_1 <dbl>, CSI_2 <dbl>, CSI_3 <dbl>, CSI_4 <dbl>, CSI_5 <dbl>,
-    ## #   CSI_6 <dbl>, CSI_7 <dbl>, CSI_8 <dbl>, CSI_9 <dbl>, CSI_10 <dbl>, …
+    ##    CoupleID ParticipantID   Age race_categ  race_categ_spec race_dich race_match
+    ##       <dbl>         <dbl> <dbl> <fct>       <fct>           <fct>     <fct>     
+    ##  1     1002           103    30 Hispanic/L… Hispanic/Latinx BIPOC     Both BIPOC
+    ##  2     1002           104    29 Asian       Asian           BIPOC     Both BIPOC
+    ##  3     1006           111    21 Hispanic/L… Hispanic/Latinx BIPOC     Mixed (on…
+    ##  4     1006           112    21 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
+    ##  5     1007           113    24 Multiracial Non-Hispanic M… BIPOC     Mixed (on…
+    ##  6     1007           114    25 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
+    ##  7     1009           117    20 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
+    ##  8     1009           118    26 Hispanic/W… Hispanic/White  BIPOC     Mixed (on…
+    ##  9     1011           121    21 Non-Hispan… Non-Hispanic W… Non-Hisp… Both non-…
+    ## 10     1011           122    20 Non-Hispan… Non-Hispanic W… Non-Hisp… Both non-…
+    ## # ℹ 134 more rows
+    ## # ℹ 248 more variables: Educ <fct>, Income <fct>, Employment <fct>,
+    ## #   SxlOrx <fct>, SxlOrx_Other_Text <chr>, SxlOrx_match <fct>,
+    ## #   sxlorx_dich <fct>, GenderIdent <fct>, GenderIdent_Other_Text <chr>,
+    ## #   GenderIdent_match <fct>, gender_three <fct>, Cohab <fct>,
+    ## #   cohab_length_mths <dbl>, cohab_length_yrs <dbl>, rel_length_mths <dbl>,
+    ## #   rel_length_yrs <dbl>, CSI_1 <dbl>, CSI_2 <dbl>, CSI_3 <dbl>, CSI_4 <dbl>, …
 
 Now let’s create a variable based on that to see if missingness relates
 to anything important. This code marks the 11 couples who are missing

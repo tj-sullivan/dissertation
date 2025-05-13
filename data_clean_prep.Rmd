@@ -274,6 +274,16 @@ data <- data %>%
   row_sums(starts_with("CTS_psych"), n = 0.7) %>% 
   rename(CTS_psych_perp_HR = rowsums)
 
+# minor items include: insulted or swore, shouted or yelled, stomped out, said something to spite 
+data <- data %>% 
+  row_sums(CTS_psych_swore_perp, CTS_psych_shout_perp, CTS_psych_stomp_perp, CTS_psych_spite_perp, n = 0.7) %>% 
+  rename(CTS_psych_perp_HR_minor = rowsums)
+
+# severe items include: called names, destroyed something, accused partner, threatened 
+data <- data %>% 
+  row_sums(CTS_psych_insult_perp, CTS_psych_destroy_perp, CTS_psych_lousy_perp, CTS_psych_threat_perp, n = 0.7) %>% 
+  rename(CTS_psych_perp_HR_severe = rowsums)
+
 data <- data %>%
   row_sums(starts_with("CTS_sgm"), n = 0.7) %>% 
   rename(CTS_sgm_perp_HR = rowsums)
@@ -284,6 +294,7 @@ Finally, create variables marking prevalence (true = an act of aggression was re
 # individual-level prevalence
 data <- data %>% 
   mutate(psych_ipv_prev = if_any(starts_with("CTS_psych"), ~ if_else(.x > 0, T, F)),
+         psych_ipv_prev = if_any(starts_with("CTS_psych"), ~ if_else(.x > 0, T, F)),
          phys_ipv_prev = if_any(starts_with("CTS_phys"), ~ if_else(.x > 0, T, F)),
          sgm_ipv_prev = if_any(starts_with("CTS_sgm"), ~ if_else(.x > 0, T, F))) 
 

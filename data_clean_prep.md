@@ -1,7 +1,7 @@
 Data Cleaning & Preparation
 ================
 T.J. Sullivan
-2023-03-15
+2025-05-14
 
 This document contains all code relevant for preparing and cleaning the
 data relevant to this dissertation project. The end of this document
@@ -294,6 +294,16 @@ data <- data %>%
   row_sums(starts_with("CTS_psych"), n = 0.7) %>% 
   rename(CTS_psych_perp_HR = rowsums)
 
+# minor items include: insulted or swore, shouted or yelled, stomped out, said something to spite 
+data <- data %>% 
+  row_sums(CTS_psych_swore_perp, CTS_psych_shout_perp, CTS_psych_stomp_perp, CTS_psych_spite_perp, n = 0.7) %>% 
+  rename(CTS_psych_perp_HR_minor = rowsums)
+
+# severe items include: called names, destroyed something, accused partner, threatened 
+data <- data %>% 
+  row_sums(CTS_psych_insult_perp, CTS_psych_destroy_perp, CTS_psych_lousy_perp, CTS_psych_threat_perp, n = 0.7) %>% 
+  rename(CTS_psych_perp_HR_severe = rowsums)
+
 data <- data %>%
   row_sums(starts_with("CTS_sgm"), n = 0.7) %>% 
   rename(CTS_sgm_perp_HR = rowsums)
@@ -306,6 +316,8 @@ aggression was reported):
 # individual-level prevalence
 data <- data %>% 
   mutate(psych_ipv_prev = if_any(starts_with("CTS_psych"), ~ if_else(.x > 0, T, F)),
+         psych_ipv_prev_min = if_any(c("CTS_psych_swore_perp", "CTS_psych_shout_perp", "CTS_psych_stomp_perp", "CTS_psych_spite_perp"), ~ if_else(.x > 0, T, F)),
+         psych_ipv_prev_sev = if_any(c("CTS_psych_insult_perp", "CTS_psych_destroy_perp", "CTS_psych_lousy_perp", "CTS_psych_threat_perp"), ~ if_else(.x > 0, T, F)),
          phys_ipv_prev = if_any(starts_with("CTS_phys"), ~ if_else(.x > 0, T, F)),
          sgm_ipv_prev = if_any(starts_with("CTS_sgm"), ~ if_else(.x > 0, T, F))) 
 
@@ -315,6 +327,7 @@ prev <- data %>% select(CoupleID, psych_ipv_prev:sgm_ipv_prev) %>%
   mutate(num = row_number()) %>% 
   ungroup() %>% 
   pivot_wider(id_cols = CoupleID, names_from = num, values_from = c(psych_ipv_prev:sgm_ipv_prev)) %>% 
+  # overall psych
   mutate(psych_ipv_prev_couple = case_when(
     (psych_ipv_prev_1 == F & psych_ipv_prev_2 == F) ~ 0,
     ((psych_ipv_prev_1 == F & psych_ipv_prev_2 == T) | (psych_ipv_prev_1 == T & psych_ipv_prev_2 == F)) ~ 1, 
@@ -323,6 +336,25 @@ prev <- data %>% select(CoupleID, psych_ipv_prev:sgm_ipv_prev) %>%
                                                `0` = "no violence",
                                                `1` = "unidirectional",
                                                `2` = "bidirectional")) %>%
+  # minor psych
+  mutate(psych_ipv_prev_couple_min = case_when(
+    (psych_ipv_prev_min_1 == F & psych_ipv_prev_min_2 == F) ~ 0,
+    ((psych_ipv_prev_min_1 == F & psych_ipv_prev_min_2 == T) | (psych_ipv_prev_min_1 == T & psych_ipv_prev_min_2 == F)) ~ 1, 
+    (psych_ipv_prev_min_1 == T & psych_ipv_prev_min_2 == T) ~ 2)) %>% 
+  mutate(psych_ipv_prev_couple_min = recode_factor(psych_ipv_prev_couple_min, 
+                                               `0` = "no violence",
+                                               `1` = "unidirectional",
+                                               `2` = "bidirectional")) %>%
+  # severe psych
+  mutate(psych_ipv_prev_couple_sev = case_when(
+    (psych_ipv_prev_sev_1 == F & psych_ipv_prev_sev_2 == F) ~ 0,
+    ((psych_ipv_prev_sev_1 == F & psych_ipv_prev_sev_2 == T) | (psych_ipv_prev_sev_1 == T & psych_ipv_prev_sev_2 == F)) ~ 1, 
+    (psych_ipv_prev_sev_1 == T & psych_ipv_prev_sev_2 == T) ~ 2)) %>% 
+  mutate(psych_ipv_prev_couple_sev = recode_factor(psych_ipv_prev_couple_sev, 
+                                               `0` = "no violence",
+                                               `1` = "unidirectional",
+                                               `2` = "bidirectional")) %>%
+  # physical
   mutate(phys_ipv_prev_couple = case_when(
     (phys_ipv_prev_1 == F & phys_ipv_prev_2 == F) ~ 0,
     ((phys_ipv_prev_1 == F & phys_ipv_prev_2 == T) | (phys_ipv_prev_1 == T & phys_ipv_prev_2 == F)) ~ 1, 
@@ -331,6 +363,7 @@ prev <- data %>% select(CoupleID, psych_ipv_prev:sgm_ipv_prev) %>%
                                                `0` = "no violence",
                                                `1` = "unidirectional",
                                                `2` = "bidirectional")) %>%
+  # sgm-specific
   mutate(sgm_ipv_prev_couple = case_when(
     (sgm_ipv_prev_1 == F & sgm_ipv_prev_2 == F) ~ 0,
     ((sgm_ipv_prev_1 == F & sgm_ipv_prev_2 == T) | (sgm_ipv_prev_1 == T & sgm_ipv_prev_2 == F)) ~ 1, 
@@ -379,7 +412,7 @@ data %>% filter(missing_IHS == T) %>% select(CoupleID, ParticipantID)
 ```
 
     ## # A tibble: 0 × 2
-    ## # … with 2 variables: CoupleID <dbl>, ParticipantID <dbl>
+    ## # ℹ 2 variables: CoupleID <dbl>, ParticipantID <dbl>
 
 ## CTS
 
@@ -402,11 +435,36 @@ data %>% filter(missing_CTSphys == T) %>% select(CoupleID, ParticipantID)
     ## 3     1128           355
     ## 4     1128           356
 
-Psychological:
+Psychological (overall):
 
 ``` r
 data <- data %>% mutate(missing_CTSpsych = ifelse(is.na(CTS_psych_perp_HR), T, F))
 data %>% filter(missing_CTSpsych == T) %>% select(CoupleID, ParticipantID)
+```
+
+    ## # A tibble: 4 × 2
+    ##   CoupleID ParticipantID
+    ##      <dbl>         <dbl>
+    ## 1     1025           149
+    ## 2     1025           150
+    ## 3     1128           355
+    ## 4     1128           356
+
+Psychological (minor):
+
+``` r
+data <- data %>% mutate(missing_CTSpsych_min = ifelse(is.na(CTS_psych_perp_HR_minor), T, F))
+data %>% filter(missing_CTSpsych_min == T) %>% select(CoupleID, ParticipantID)
+```
+
+    ## # A tibble: 0 × 2
+    ## # ℹ 2 variables: CoupleID <dbl>, ParticipantID <dbl>
+
+Psychological (severe):
+
+``` r
+data <- data %>% mutate(missing_CTSpsych_sev = ifelse(is.na(CTS_psych_perp_HR_severe), T, F))
+data %>% filter(missing_CTSpsych_sev == T) %>% select(CoupleID, ParticipantID)
 ```
 
     ## # A tibble: 4 × 2
@@ -494,16 +552,18 @@ data %>% select(CoupleID, ParticipantID, PANAS_life_neg, c("PANAS_life_2", "PANA
 
     ## Warning: Using `if_any()` without supplying `.cols` was deprecated in dplyr 1.1.0.
     ## ℹ Please supply `.cols` instead.
+    ## This warning is displayed once every 8 hours.
+    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+    ## generated.
 
     ## # A tibble: 2 × 13
-    ##   CoupleID ParticipantID PANAS…¹ PANAS…² PANAS…³ PANAS…⁴ PANAS…⁵ PANAS…⁶ PANAS…⁷
-    ##      <dbl>         <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-    ## 1     1046           192      13       2      NA       2       1       1       1
-    ## 2     1072           243       9       1       1       1       1       1       1
-    ## # … with 4 more variables: PANAS_life_13 <dbl>, PANAS_life_15 <dbl>,
-    ## #   PANAS_life_18 <dbl>, PANAS_life_20 <dbl>, and abbreviated variable names
-    ## #   ¹​PANAS_life_neg, ²​PANAS_life_2, ³​PANAS_life_4, ⁴​PANAS_life_6,
-    ## #   ⁵​PANAS_life_7, ⁶​PANAS_life_8, ⁷​PANAS_life_11
+    ##   CoupleID ParticipantID PANAS_life_neg PANAS_life_2 PANAS_life_4 PANAS_life_6
+    ##      <dbl>         <dbl>          <dbl>        <dbl>        <dbl>        <dbl>
+    ## 1     1046           192             13            2           NA            2
+    ## 2     1072           243              9            1            1            1
+    ## # ℹ 7 more variables: PANAS_life_7 <dbl>, PANAS_life_8 <dbl>,
+    ## #   PANAS_life_11 <dbl>, PANAS_life_13 <dbl>, PANAS_life_15 <dbl>,
+    ## #   PANAS_life_18 <dbl>, PANAS_life_20 <dbl>
 
 Because we used sum scores, we went ahead and imputed these responses as
 1, which was the mode for both participants here.
@@ -531,7 +591,7 @@ data %>% filter(missing_CSI == T) %>% select(CoupleID, ParticipantID)
 ```
 
     ## # A tibble: 0 × 2
-    ## # … with 2 variables: CoupleID <dbl>, ParticipantID <dbl>
+    ## # ℹ 2 variables: CoupleID <dbl>, ParticipantID <dbl>
 
 ## Global DC during discussions
 
@@ -589,7 +649,7 @@ data %>% select(CoupleID, ParticipantID, StressorTopic_sev) %>% filter(is.na(Str
 ```
 
     ## # A tibble: 0 × 2
-    ## # … with 2 variables: CoupleID <dbl>, ParticipantID <dbl>
+    ## # ℹ 2 variables: CoupleID <dbl>, ParticipantID <dbl>
 
 Discrimination stressor severity:
 
@@ -635,8 +695,7 @@ data %>% select(CoupleID, ParticipantID, DiscrimTopic_sev) %>% filter(is.na(Disc
 ```
 
     ## # A tibble: 0 × 3
-    ## # … with 3 variables: CoupleID <dbl>, ParticipantID <dbl>,
-    ## #   DiscrimTopic_sev <dbl>
+    ## # ℹ 3 variables: CoupleID <dbl>, ParticipantID <dbl>, DiscrimTopic_sev <dbl>
 
 N for Aim 1 analyses is 82 couples (n = 164 individuals):
 
@@ -648,26 +707,26 @@ data %>%
   filter(missing_CTSsgm == F) 
 ```
 
-    ## # A tibble: 164 × 255
-    ##    CoupleID Partici…¹   Age race_…² race_…³ race_…⁴ race_…⁵ Educ  Income Emplo…⁶
-    ##       <dbl>     <dbl> <dbl> <fct>   <fct>   <fct>   <fct>   <fct> <fct>  <fct>  
-    ##  1     1001       101    25 Non-Hi… Non-Hi… Non-Hi… Both n… Mast… $24,0… Part-t…
-    ##  2     1001       102    25 Non-Hi… Non-Hi… Non-Hi… Both n… 4-ye… $24,0… Unempl…
-    ##  3     1002       103    30 Hispan… Hispan… BIPOC   Both B… Mast… $120,… Full-t…
-    ##  4     1002       104    29 Asian   Asian   BIPOC   Both B… Mast… $75,0… Full-t…
-    ##  5     1006       111    21 Hispan… Hispan… BIPOC   Mixed … Some… Under… Part-t…
-    ##  6     1006       112    21 Non-Hi… Non-Hi… Non-Hi… Mixed … Asso… $12,0… Part-t…
-    ##  7     1007       113    24 Multir… Non-Hi… BIPOC   Mixed … Asso… $24,0… Part-t…
-    ##  8     1007       114    25 Non-Hi… Non-Hi… Non-Hi… Mixed … Some… Under… Part-t…
-    ##  9     1009       117    20 Non-Hi… Non-Hi… Non-Hi… Mixed … Some… $12,0… Unempl…
-    ## 10     1009       118    26 Hispan… Hispan… BIPOC   Mixed … Asso… $12,0… Part-t…
-    ## # … with 154 more rows, 245 more variables: SxlOrx <fct>,
-    ## #   SxlOrx_Other_Text <chr>, SxlOrx_match <fct>, sxlorx_dich <fct>,
-    ## #   GenderIdent <fct>, GenderIdent_Other_Text <chr>, GenderIdent_match <fct>,
-    ## #   gender_three <fct>, Cohab <fct>, cohab_length_mths <dbl>,
-    ## #   cohab_length_yrs <dbl>, rel_length_mths <dbl>, rel_length_yrs <dbl>,
-    ## #   CSI_1 <dbl>, CSI_2 <dbl>, CSI_3 <dbl>, CSI_4 <dbl>, CSI_5 <dbl>,
-    ## #   CSI_6 <dbl>, CSI_7 <dbl>, CSI_8 <dbl>, CSI_9 <dbl>, CSI_10 <dbl>, …
+    ## # A tibble: 164 × 263
+    ##    CoupleID ParticipantID   Age race_categ  race_categ_spec race_dich race_match
+    ##       <dbl>         <dbl> <dbl> <fct>       <fct>           <fct>     <fct>     
+    ##  1     1001           101    25 Non-Hispan… Non-Hispanic W… Non-Hisp… Both non-…
+    ##  2     1001           102    25 Non-Hispan… Non-Hispanic W… Non-Hisp… Both non-…
+    ##  3     1002           103    30 Hispanic/L… Hispanic/Latinx BIPOC     Both BIPOC
+    ##  4     1002           104    29 Asian       Asian           BIPOC     Both BIPOC
+    ##  5     1006           111    21 Hispanic/L… Hispanic/Latinx BIPOC     Mixed (on…
+    ##  6     1006           112    21 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
+    ##  7     1007           113    24 Multiracial Non-Hispanic M… BIPOC     Mixed (on…
+    ##  8     1007           114    25 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
+    ##  9     1009           117    20 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
+    ## 10     1009           118    26 Hispanic/W… Hispanic/White  BIPOC     Mixed (on…
+    ## # ℹ 154 more rows
+    ## # ℹ 256 more variables: Educ <fct>, Income <fct>, Employment <fct>,
+    ## #   SxlOrx <fct>, SxlOrx_Other_Text <chr>, SxlOrx_match <fct>,
+    ## #   sxlorx_dich <fct>, GenderIdent <fct>, GenderIdent_Other_Text <chr>,
+    ## #   GenderIdent_match <fct>, gender_three <fct>, Cohab <fct>,
+    ## #   cohab_length_mths <dbl>, cohab_length_yrs <dbl>, rel_length_mths <dbl>,
+    ## #   rel_length_yrs <dbl>, CSI_1 <dbl>, CSI_2 <dbl>, CSI_3 <dbl>, CSI_4 <dbl>, …
 
 N for Aim 2 analyses is 79 (n = 158 individs).
 
@@ -684,28 +743,28 @@ data %>%
   filter(missing_PANASdisc == F)
 ```
 
-    ## # A tibble: 158 × 255
-    ##    CoupleID Partici…¹   Age race_…² race_…³ race_…⁴ race_…⁵ Educ  Income Emplo…⁶
-    ##       <dbl>     <dbl> <dbl> <fct>   <fct>   <fct>   <fct>   <fct> <fct>  <fct>  
-    ##  1     1001       101    25 Non-Hi… Non-Hi… Non-Hi… Both n… Mast… $24,0… Part-t…
-    ##  2     1001       102    25 Non-Hi… Non-Hi… Non-Hi… Both n… 4-ye… $24,0… Unempl…
-    ##  3     1002       103    30 Hispan… Hispan… BIPOC   Both B… Mast… $120,… Full-t…
-    ##  4     1002       104    29 Asian   Asian   BIPOC   Both B… Mast… $75,0… Full-t…
-    ##  5     1006       111    21 Hispan… Hispan… BIPOC   Mixed … Some… Under… Part-t…
-    ##  6     1006       112    21 Non-Hi… Non-Hi… Non-Hi… Mixed … Asso… $12,0… Part-t…
-    ##  7     1007       113    24 Multir… Non-Hi… BIPOC   Mixed … Asso… $24,0… Part-t…
-    ##  8     1007       114    25 Non-Hi… Non-Hi… Non-Hi… Mixed … Some… Under… Part-t…
-    ##  9     1009       117    20 Non-Hi… Non-Hi… Non-Hi… Mixed … Some… $12,0… Unempl…
-    ## 10     1009       118    26 Hispan… Hispan… BIPOC   Mixed … Asso… $12,0… Part-t…
-    ## # … with 148 more rows, 245 more variables: SxlOrx <fct>,
-    ## #   SxlOrx_Other_Text <chr>, SxlOrx_match <fct>, sxlorx_dich <fct>,
-    ## #   GenderIdent <fct>, GenderIdent_Other_Text <chr>, GenderIdent_match <fct>,
-    ## #   gender_three <fct>, Cohab <fct>, cohab_length_mths <dbl>,
-    ## #   cohab_length_yrs <dbl>, rel_length_mths <dbl>, rel_length_yrs <dbl>,
-    ## #   CSI_1 <dbl>, CSI_2 <dbl>, CSI_3 <dbl>, CSI_4 <dbl>, CSI_5 <dbl>,
-    ## #   CSI_6 <dbl>, CSI_7 <dbl>, CSI_8 <dbl>, CSI_9 <dbl>, CSI_10 <dbl>, …
+    ## # A tibble: 158 × 263
+    ##    CoupleID ParticipantID   Age race_categ  race_categ_spec race_dich race_match
+    ##       <dbl>         <dbl> <dbl> <fct>       <fct>           <fct>     <fct>     
+    ##  1     1001           101    25 Non-Hispan… Non-Hispanic W… Non-Hisp… Both non-…
+    ##  2     1001           102    25 Non-Hispan… Non-Hispanic W… Non-Hisp… Both non-…
+    ##  3     1002           103    30 Hispanic/L… Hispanic/Latinx BIPOC     Both BIPOC
+    ##  4     1002           104    29 Asian       Asian           BIPOC     Both BIPOC
+    ##  5     1006           111    21 Hispanic/L… Hispanic/Latinx BIPOC     Mixed (on…
+    ##  6     1006           112    21 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
+    ##  7     1007           113    24 Multiracial Non-Hispanic M… BIPOC     Mixed (on…
+    ##  8     1007           114    25 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
+    ##  9     1009           117    20 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
+    ## 10     1009           118    26 Hispanic/W… Hispanic/White  BIPOC     Mixed (on…
+    ## # ℹ 148 more rows
+    ## # ℹ 256 more variables: Educ <fct>, Income <fct>, Employment <fct>,
+    ## #   SxlOrx <fct>, SxlOrx_Other_Text <chr>, SxlOrx_match <fct>,
+    ## #   sxlorx_dich <fct>, GenderIdent <fct>, GenderIdent_Other_Text <chr>,
+    ## #   GenderIdent_match <fct>, gender_three <fct>, Cohab <fct>,
+    ## #   cohab_length_mths <dbl>, cohab_length_yrs <dbl>, rel_length_mths <dbl>,
+    ## #   rel_length_yrs <dbl>, CSI_1 <dbl>, CSI_2 <dbl>, CSI_3 <dbl>, CSI_4 <dbl>, …
 
-N for analyses with covariates is 73 couples (n = 146 individs):
+N for analyses with covariates is 72 couples (n = 144 individs):
 
 ``` r
 data %>% 
@@ -721,29 +780,31 @@ data %>%
   # 5 couples excluded
   filter(missing_GlobalDClife == F) %>% 
   # 1 couple excluded 
-  filter(missing_GlobalDCdisc == F)
+  filter(missing_GlobalDCdisc == F) %>% 
+  # 1 additional couple excluded b/c one partner did not report on race/ethnicity
+  filter(CoupleID != 1083)
 ```
 
-    ## # A tibble: 146 × 255
-    ##    CoupleID Partici…¹   Age race_…² race_…³ race_…⁴ race_…⁵ Educ  Income Emplo…⁶
-    ##       <dbl>     <dbl> <dbl> <fct>   <fct>   <fct>   <fct>   <fct> <fct>  <fct>  
-    ##  1     1002       103    30 Hispan… Hispan… BIPOC   Both B… Mast… $120,… Full-t…
-    ##  2     1002       104    29 Asian   Asian   BIPOC   Both B… Mast… $75,0… Full-t…
-    ##  3     1006       111    21 Hispan… Hispan… BIPOC   Mixed … Some… Under… Part-t…
-    ##  4     1006       112    21 Non-Hi… Non-Hi… Non-Hi… Mixed … Asso… $12,0… Part-t…
-    ##  5     1007       113    24 Multir… Non-Hi… BIPOC   Mixed … Asso… $24,0… Part-t…
-    ##  6     1007       114    25 Non-Hi… Non-Hi… Non-Hi… Mixed … Some… Under… Part-t…
-    ##  7     1009       117    20 Non-Hi… Non-Hi… Non-Hi… Mixed … Some… $12,0… Unempl…
-    ##  8     1009       118    26 Hispan… Hispan… BIPOC   Mixed … Asso… $12,0… Part-t…
-    ##  9     1011       121    21 Non-Hi… Non-Hi… Non-Hi… Both n… Some… Under… Part-t…
-    ## 10     1011       122    20 Non-Hi… Non-Hi… Non-Hi… Both n… Some… Under… Part-t…
-    ## # … with 136 more rows, 245 more variables: SxlOrx <fct>,
-    ## #   SxlOrx_Other_Text <chr>, SxlOrx_match <fct>, sxlorx_dich <fct>,
-    ## #   GenderIdent <fct>, GenderIdent_Other_Text <chr>, GenderIdent_match <fct>,
-    ## #   gender_three <fct>, Cohab <fct>, cohab_length_mths <dbl>,
-    ## #   cohab_length_yrs <dbl>, rel_length_mths <dbl>, rel_length_yrs <dbl>,
-    ## #   CSI_1 <dbl>, CSI_2 <dbl>, CSI_3 <dbl>, CSI_4 <dbl>, CSI_5 <dbl>,
-    ## #   CSI_6 <dbl>, CSI_7 <dbl>, CSI_8 <dbl>, CSI_9 <dbl>, CSI_10 <dbl>, …
+    ## # A tibble: 144 × 263
+    ##    CoupleID ParticipantID   Age race_categ  race_categ_spec race_dich race_match
+    ##       <dbl>         <dbl> <dbl> <fct>       <fct>           <fct>     <fct>     
+    ##  1     1002           103    30 Hispanic/L… Hispanic/Latinx BIPOC     Both BIPOC
+    ##  2     1002           104    29 Asian       Asian           BIPOC     Both BIPOC
+    ##  3     1006           111    21 Hispanic/L… Hispanic/Latinx BIPOC     Mixed (on…
+    ##  4     1006           112    21 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
+    ##  5     1007           113    24 Multiracial Non-Hispanic M… BIPOC     Mixed (on…
+    ##  6     1007           114    25 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
+    ##  7     1009           117    20 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
+    ##  8     1009           118    26 Hispanic/W… Hispanic/White  BIPOC     Mixed (on…
+    ##  9     1011           121    21 Non-Hispan… Non-Hispanic W… Non-Hisp… Both non-…
+    ## 10     1011           122    20 Non-Hispan… Non-Hispanic W… Non-Hisp… Both non-…
+    ## # ℹ 134 more rows
+    ## # ℹ 256 more variables: Educ <fct>, Income <fct>, Employment <fct>,
+    ## #   SxlOrx <fct>, SxlOrx_Other_Text <chr>, SxlOrx_match <fct>,
+    ## #   sxlorx_dich <fct>, GenderIdent <fct>, GenderIdent_Other_Text <chr>,
+    ## #   GenderIdent_match <fct>, gender_three <fct>, Cohab <fct>,
+    ## #   cohab_length_mths <dbl>, cohab_length_yrs <dbl>, rel_length_mths <dbl>,
+    ## #   rel_length_yrs <dbl>, CSI_1 <dbl>, CSI_2 <dbl>, CSI_3 <dbl>, CSI_4 <dbl>, …
 
 # Saving data file for analyses
 

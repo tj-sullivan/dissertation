@@ -294,7 +294,8 @@ Finally, create variables marking prevalence (true = an act of aggression was re
 # individual-level prevalence
 data <- data %>% 
   mutate(psych_ipv_prev = if_any(starts_with("CTS_psych"), ~ if_else(.x > 0, T, F)),
-         psych_ipv_prev = if_any(starts_with("CTS_psych"), ~ if_else(.x > 0, T, F)),
+         psych_ipv_prev_min = if_any(c("CTS_psych_swore_perp", "CTS_psych_shout_perp", "CTS_psych_stomp_perp", "CTS_psych_spite_perp"), ~ if_else(.x > 0, T, F)),
+         psych_ipv_prev_sev = if_any(c("CTS_psych_insult_perp", "CTS_psych_destroy_perp", "CTS_psych_lousy_perp", "CTS_psych_threat_perp"), ~ if_else(.x > 0, T, F)),
          phys_ipv_prev = if_any(starts_with("CTS_phys"), ~ if_else(.x > 0, T, F)),
          sgm_ipv_prev = if_any(starts_with("CTS_sgm"), ~ if_else(.x > 0, T, F))) 
 
@@ -304,6 +305,7 @@ prev <- data %>% select(CoupleID, psych_ipv_prev:sgm_ipv_prev) %>%
   mutate(num = row_number()) %>% 
   ungroup() %>% 
   pivot_wider(id_cols = CoupleID, names_from = num, values_from = c(psych_ipv_prev:sgm_ipv_prev)) %>% 
+  # overall psych
   mutate(psych_ipv_prev_couple = case_when(
     (psych_ipv_prev_1 == F & psych_ipv_prev_2 == F) ~ 0,
     ((psych_ipv_prev_1 == F & psych_ipv_prev_2 == T) | (psych_ipv_prev_1 == T & psych_ipv_prev_2 == F)) ~ 1, 
@@ -312,6 +314,25 @@ prev <- data %>% select(CoupleID, psych_ipv_prev:sgm_ipv_prev) %>%
                                                `0` = "no violence",
                                                `1` = "unidirectional",
                                                `2` = "bidirectional")) %>%
+  # minor psych
+  mutate(psych_ipv_prev_couple_min = case_when(
+    (psych_ipv_prev_min_1 == F & psych_ipv_prev_min_2 == F) ~ 0,
+    ((psych_ipv_prev_min_1 == F & psych_ipv_prev_min_2 == T) | (psych_ipv_prev_min_1 == T & psych_ipv_prev_min_2 == F)) ~ 1, 
+    (psych_ipv_prev_min_1 == T & psych_ipv_prev_min_2 == T) ~ 2)) %>% 
+  mutate(psych_ipv_prev_couple_min = recode_factor(psych_ipv_prev_couple_min, 
+                                               `0` = "no violence",
+                                               `1` = "unidirectional",
+                                               `2` = "bidirectional")) %>%
+  # severe psych
+  mutate(psych_ipv_prev_couple_sev = case_when(
+    (psych_ipv_prev_sev_1 == F & psych_ipv_prev_sev_2 == F) ~ 0,
+    ((psych_ipv_prev_sev_1 == F & psych_ipv_prev_sev_2 == T) | (psych_ipv_prev_sev_1 == T & psych_ipv_prev_sev_2 == F)) ~ 1, 
+    (psych_ipv_prev_sev_1 == T & psych_ipv_prev_sev_2 == T) ~ 2)) %>% 
+  mutate(psych_ipv_prev_couple_sev = recode_factor(psych_ipv_prev_couple_sev, 
+                                               `0` = "no violence",
+                                               `1` = "unidirectional",
+                                               `2` = "bidirectional")) %>%
+  # physical
   mutate(phys_ipv_prev_couple = case_when(
     (phys_ipv_prev_1 == F & phys_ipv_prev_2 == F) ~ 0,
     ((phys_ipv_prev_1 == F & phys_ipv_prev_2 == T) | (phys_ipv_prev_1 == T & phys_ipv_prev_2 == F)) ~ 1, 
@@ -320,6 +341,7 @@ prev <- data %>% select(CoupleID, psych_ipv_prev:sgm_ipv_prev) %>%
                                                `0` = "no violence",
                                                `1` = "unidirectional",
                                                `2` = "bidirectional")) %>%
+  # sgm-specific
   mutate(sgm_ipv_prev_couple = case_when(
     (sgm_ipv_prev_1 == F & sgm_ipv_prev_2 == F) ~ 0,
     ((sgm_ipv_prev_1 == F & sgm_ipv_prev_2 == T) | (sgm_ipv_prev_1 == T & sgm_ipv_prev_2 == F)) ~ 1, 
@@ -370,10 +392,23 @@ Physical:
 data <- data %>% mutate(missing_CTSphys = ifelse(is.na(CTS_phys_perp_HR), T, F))
 data %>% filter(missing_CTSphys == T) %>% select(CoupleID, ParticipantID)
 ```
-Psychological:
+
+Psychological (overall):
 ```{r}
 data <- data %>% mutate(missing_CTSpsych = ifelse(is.na(CTS_psych_perp_HR), T, F))
 data %>% filter(missing_CTSpsych == T) %>% select(CoupleID, ParticipantID)
+```
+
+Psychological (minor):
+```{r}
+data <- data %>% mutate(missing_CTSpsych_min = ifelse(is.na(CTS_psych_perp_HR_minor), T, F))
+data %>% filter(missing_CTSpsych_min == T) %>% select(CoupleID, ParticipantID)
+```
+
+Psychological (severe): 
+```{r}
+data <- data %>% mutate(missing_CTSpsych_sev = ifelse(is.na(CTS_psych_perp_HR_severe), T, F))
+data %>% filter(missing_CTSpsych_sev == T) %>% select(CoupleID, ParticipantID)
 ```
 
 SGM-specific:

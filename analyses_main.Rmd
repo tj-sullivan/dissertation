@@ -36,13 +36,13 @@ data_clean <- readRDS("data/CCS_data_cleaned.rds")
 
 # Prep for analyses
 
-Let's clean up the dataframe so we only have the summary variables and relevant covaraites - we don't need item level data for the main analyses here.
+Let's clean up the dataframe so we only have the summary variables and relevant covariates - we don't need item level data for the main analyses here.
 
 ```{r}
 data <- data_clean |>
   select(CoupleID, ParticipantID,
          # main variables
-         IHS_mean, PANAS_disc_neg, PANAS_life_neg, CTS_phys_perp_HR, CTS_psych_perp_HR, CTS_sgm_perp_HR,
+         IHS_mean, PANAS_disc_neg, PANAS_life_neg, CTS_phys_perp_HR, CTS_psych_perp_HR, CTS_psych_perp_HR_minor, CTS_psych_perp_HR_severe, CTS_sgm_perp_HR,
          # covariates
          Age, rel_length_yrs, sxlorx_dich, gender_three, race_dich, 
          CSI_sum, DiscussionOrder,
@@ -69,7 +69,7 @@ data <- long_to_pw(data, CoupleID, PANAS_life_neg)
 glimpse(data)
 ```
 
-Go ahead and standardized or grand-mean center continuous predictors.
+Go ahead and standardize or grand-mean center continuous predictors.
 
 ```{r}
 center <- function(x){
@@ -107,7 +107,7 @@ For future reference, here are more resources on the hurdle modeling approach th
 
 ### Default
 
-Ok so let's take a look at what these models look like with default priors here. We'll split this up by psychological and then physical & SGM-specific IPV perpetration b/c there are vastly different rates of zeroes across these two variables. For psych, almost everyone perpetrated a little bit wheres for physical and SGM-specific, only ~15% of the sample had endorsed any perpetration in the past year. Let's run these models:
+Ok so let's take a look at what these models look like with default priors here. We'll split this up by psychological and then physical & SGM-specific IPV perpetration b/c there are vastly different rates of zeroes across these two variables. For psych (minor + overall), almost everyone perpetrated a little bit wheres for physical and SGM-specific, only ~15% of the sample had endorsed any perpetration in the past year. Let's run these models:
 
 ```{r}
 like_psych <- brm(bf(CTS_psych_perp_HR ~ 1,
@@ -117,6 +117,26 @@ like_psych <- brm(bf(CTS_psych_perp_HR ~ 1,
                   chains = 4, iter = 2000, warmup = 1000, cores = 4,
                   seed = 1234,
                   file = "fits/like_psych",
+                  file_refit = "on_change"
+                  )
+
+like_psych_min <- brm(bf(CTS_psych_perp_HR_minor ~ 1,
+                     hu ~ 1),
+                  data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_psych_min",
+                  file_refit = "on_change"
+                  )
+
+like_psych_sev <- brm(bf(CTS_psych_perp_HR_severe ~ 1,
+                     hu ~ 1),
+                  data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_psych_sev",
                   file_refit = "on_change"
                   )
 
@@ -161,6 +181,29 @@ inv_logit_scaled(-2.33)
 
 Which means the estimated proportion of 0s in the data is 8.9%. That's not terribly far from the empirical proportion of 0s for psych IPV perpetration (8.5%). So overall, this basic model here predicts that the probability of no psychological IPV perpetration is 8.5% and, among those who do perpetrate, they perpetrate an estimated 18.92 acts (past-year). 
 
+Let's see how that works out for minor and severe psych IPV perpetration. 
+
+```{r}
+summary(like_psych_min)
+```
+
+```{r}
+exp(2.76)
+inv_logit_scaled(-2.15)
+```
+
+
+```{r}
+summary(like_psych_sev)
+```
+
+```{r}
+exp(-2.22)
+inv_logit_scaled(0.20)
+```
+
+We see here that the minor model was relatively similar to the observed data, but the severe model was less so. The model is widely uncertain about the rate and it does not mirror the observed data. 
+
 Now let's do this for physical:
 
 ```{r}
@@ -203,7 +246,7 @@ plogis(1.84)
 
 Again, we see that the prediction of zeroes is pretty close to the empirical data but the overall mean is pretty under-estimated relative to the empirical means. 
 
-OK. SO. The default priors are bad. We know that they are going to have a minimal influence on the parameter estimates and so they're going to rely on the data more for estimating the posterior. This is probably fine for psychological IPV b/c we have a good amount of data there, but this is definitely not fine for physical and SGM-specific IPV because of the low rates of perpetration. And, regardless, we can do better b/c we have content domain knowledge about what are reasonable bounds of the data for these models. 
+OK. SO. The default priors are bad. We know that they are going to have a minimal influence on the parameter estimates and so they're going to rely on the data more for estimating the posterior. This is probably fine for overall and minor psychological IPV b/c we have a good amount of data there, but this is definitely not fine for physical and SGM-specific IPV because of the low rates of perpetration. It might not be fine for severe psychological IPV either. And, regardless, we can do better b/c we have content domain knowledge about what are reasonable bounds of the data for these models. 
 
 One question I have is how the hurdle model works with simulated data, so I can see whether the model actually picks up on the population parameters that we used. It's real possible that these models get finicky with the physical and SGM-specific IPV perpetration estimates b/c there is so little data. In this next section, I play around with priors for these models. 
 
@@ -342,9 +385,9 @@ pp_check(sim_phys_2, ndraws = 100)
 
 That's roughly within the bounds of the simulated data as well, although the model does predict some potential really extreme values out in the tails. That's ok - that is possible in these data where you might get a really aggressive couple or two in the sample. 
 
-#### Psych IPV
+#### Psych IPV - overall & minor 
 
-Now let's fiddle with some data simulation where the rate of zeroes in psych IPV is closer to 10% (vs. 80ish% for physical & SGM-specific IPV).
+Now let's fiddle with some data simulation where the rate of zeroes in psych IPV (both overall and minor) is closer to 10% (vs. 80ish% for physical & SGM-specific IPV).
 
 First, simulate some data:
 ```{r}
@@ -443,6 +486,78 @@ pp_check(sim_psych_2, ndraws = 100)
 Also doing a really nice job here still! 
 
 One thing to note for your future self is that the Intercept parameter in these hurdle models seems to correspond to the OVERALL mean in the data. It's not necessarily picking up on the mean of those who are > 0. 
+
+#### (to do) Psych IPV - severe 
+
+WIP***
+
+Now let's fiddle with some data simulation where the rate of zeroes in severe psych IPV is closer to 50% (vs. 80ish% for physical & SGM-specific IPV + 10% for overall & minor psych IPV).
+
+First, simulate some data:
+```{r}
+# set population parameters - formula is the Intercept rate and the variance is the dispersion parameter
+def <- defData(varname = "ipv", dist = "negBinomial", formula = 0.5, variance = 3, link = "log")
+
+# simulate a dataset of 184 people to utilize
+set.seed(12345)
+dd <- genData(168, def)
+```
+
+Let's see what that looks like
+```{r}
+dd |> frq(ipv)
+ggplot(dd, aes(x = ipv)) + geom_histogram(binwidth = 1)
+```
+
+
+```{r}
+# a is the Intercept term ON THE LOG SCALE, b is the hu_Intercept term ON THE LOG ODDS/LOGIT SCALE; we then back-transform to see what these priors imply about the observed data
+set.seed(1234)
+psim <- tibble(a = rnorm(1e4, mean = 1, sd = 0.5),
+               b = rnorm(1e4, mean = 0, sd = 0.5)) |>
+  mutate(lambda = exp(a),
+         hu = inv_logit_scaled(b))
+```
+
+Let's take a look at the Intercept term (expected mean/rate)
+```{r, warning = F, fig.show = "hold", out.width = "25%"}
+ggplot(psim, aes(x = a)) + geom_histogram() + xlab("Intercept - log scale")
+ggplot(psim, aes(x = lambda)) + geom_histogram(binwidth = 1) + xlab("Intercept - outcome scale")
+```
+
+And the hu_Intercept term (proportion of 0s in the data)
+```{r, warning = F, fig.show = "hold", out.width = "25%"}
+ggplot(psim, aes(x = b)) + geom_histogram() + xlab("hu_Intercept - logit scale")
+ggplot(psim, aes(x = hu)) + geom_histogram() + xlab("hu_Intercept - outcome scale")
+```
+
+Now let's re-run the model with those priors:
+```{r}
+sim_psych_3 <- brm(bf(ipv ~ 1,
+                      hu ~ 1),
+                  prior = c(prior(normal(1, 0.5), class = Intercept), # prior on mean (log scale)
+                            prior(normal(0, 0.5), class = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                     data = dd,
+                     family = hurdle_negbinomial(),
+                     chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                     seed = 1234,
+                     file = "fits/sim_psych_3",
+                     file_refit = "on_change"
+                )
+```
+
+Summarize:
+```{r}
+summary(sim_psych_3)
+```
+
+We see here that it still does not do a great job at recovering the population parameters. 
+
+```{r}
+pp_check(sim_psych_3, ndraws = 100)
+```
 
 ### Informative 
 

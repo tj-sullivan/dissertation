@@ -68,17 +68,37 @@ data %>% filter(CTS_phys_perp_HR != 213) %>% ggplot(aes(x = CTS_phys_perp_HR)) +
 
 That still looks pretty skewed, but basically this is because there are large jumps in count proportions for physical IPV in this sample. It's worth looking into how analyses hold for physical IPV when excluded the couple with 213 acts of violence; however, as McElreath commonly notes, outliers are sometimes truly data and we want to preserve them in analyses because they could meaningfully inform estimates. 
 
-Psychological scatterplot:
+Psychological histogram (overall):
 ```{r, warning = F}
 data %>% ggplot(aes(x = CTS_psych_perp_HR)) + geom_histogram(binwidth = 1)
 ```
 
-Psychological frequency: 
+Psychological frequency (overall): 
 ```{r, warning = F}
 data %>% frq(CTS_psych_perp_HR)
 ```
 
-SGM-specific scatterplot:
+Psychological histogram (minor):
+```{r, warning = F}
+data %>% ggplot(aes(x = CTS_psych_perp_HR_minor)) + geom_histogram(binwidth = 1)
+```
+
+Psychological frequency (minor): 
+```{r, warning = F}
+data %>% frq(CTS_psych_perp_HR_minor)
+```
+
+Psychological histogram (severe):
+```{r, warning = F}
+data %>% ggplot(aes(x = CTS_psych_perp_HR_severe)) + geom_histogram(binwidth = 1)
+```
+
+Psychological frequency (severe): 
+```{r, warning = F}
+data %>% frq(CTS_psych_perp_HR_severe)
+```
+
+SGM-specific histogram:
 ```{r, warning = F}
 data %>% ggplot(aes(x = CTS_sgm_perp_HR)) + geom_histogram(binwidth = 1)
 ```
@@ -90,7 +110,7 @@ data %>% frq(CTS_sgm_perp_HR)
 
 ## PANAS
 
-Scatterplot for life stressor discussion:
+Histogram for life stressor discussion:
 ```{r, warning = F}
 data %>% ggplot(aes(x = PANAS_life_neg)) + geom_histogram(binwidth = 1)
 ```
@@ -100,7 +120,7 @@ Frequencies for life stressor discussion:
 data %>% frq(PANAS_life_neg)
 ```
 
-Scatterplot for discrimination stressor discussion:
+Histogram for discrimination stressor discussion:
 ```{r, warning = F}
 data %>% ggplot(aes(x = PANAS_disc_neg)) + geom_histogram(binwidth = 1)
 ```
@@ -125,9 +145,19 @@ Let's see what that plot looks like without the very large outliers:
 data %>% filter(CTS_phys_perp_HR != 213 & CTS_phys_perp_HR != 64) %>% ggplot(aes(x = IHS_mean, y = CTS_phys_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-Psychological:
+Psychological (overall):
 ```{r, warning = F}
 data %>% ggplot(aes(x = IHS_mean, y = CTS_psych_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
+```
+
+Psychological (minor):
+```{r, warning = F}
+data %>% ggplot(aes(x = IHS_mean, y = CTS_psych_perp_HR_minor)) + geom_point() + geom_jitter(width = 0.075)
+```
+
+Psychological (severe):
+```{r, warning = F}
+data %>% ggplot(aes(x = IHS_mean, y = CTS_psych_perp_HR_severe)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
 SGM-specific:
@@ -157,7 +187,7 @@ data %>% ggplot(aes(y = PANAS_life_neg, x = CTS_phys_perp_HR)) + geom_point() + 
 data %>% ggplot(aes(y = PANAS_disc_neg, x = CTS_phys_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-Psychological:
+Psychological (overall):
 ```{r, warning = F}
 data %>% ggplot(aes(y = PANAS_life_neg, x = CTS_psych_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
 ```
@@ -165,6 +195,25 @@ data %>% ggplot(aes(y = PANAS_life_neg, x = CTS_psych_perp_HR)) + geom_point() +
 ```{r, warning = F}
 data %>% ggplot(aes(y = PANAS_disc_neg, x = CTS_psych_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
 ```
+
+Psychological (minor):
+```{r, warning = F}
+data %>% ggplot(aes(y = PANAS_life_neg, x = CTS_psych_perp_HR_minor)) + geom_point() + geom_jitter(width = 0.075)
+```
+
+```{r, warning = F}
+data %>% ggplot(aes(y = PANAS_disc_neg, x = CTS_psych_perp_HR_minor)) + geom_point() + geom_jitter(width = 0.075)
+```
+
+Psychological (severe):
+```{r, warning = F}
+data %>% ggplot(aes(y = PANAS_life_neg, x = CTS_psych_perp_HR_severe)) + geom_point() + geom_jitter(width = 0.075)
+```
+
+```{r, warning = F}
+data %>% ggplot(aes(y = PANAS_disc_neg, x = CTS_psych_perp_HR_severe)) + geom_point() + geom_jitter(width = 0.075)
+```
+
 
 SGM-specific:
 ```{r, warning = F}
@@ -185,7 +234,7 @@ Let's get individual-level prevalence across subscales and for specific acts on 
 prev <- data %>% 
   # select variables for reporting
   select(phys_ipv_prev, CTS_phys_threw_perp:CTS_phys_kick_perp,
-         psych_ipv_prev, CTS_psych_swore_perp:CTS_psych_threat_perp,
+         psych_ipv_prev, psych_ipv_prev_min, CTS_psych_swore_perp, CTS_psych_shout_perp, CTS_psych_stomp_perp, CTS_psych_spite_perp, psych_ipv_prev_sev, CTS_psych_insult_perp, CTS_psych_destroy_perp, CTS_psych_lousy_perp, CTS_psych_threat_perp,
          sgm_ipv_prev, CTS_sgm_threatout_perp:CTS_sgm_pda_perp) %>% 
   # recode them as yes/no 
   mutate(across(everything(), ~ if_else(.x > 0, T, F))) %>%
@@ -212,9 +261,10 @@ write_csv(prev, "output/ipv_individ_prev.csv")
 # display output 
 prev
 ```
+
 Then let's pull prevalence at the couple level. 
 ```{r}
-data %>% select(CoupleID, phys_ipv_prev_couple, psych_ipv_prev_couple, sgm_ipv_prev_couple) %>%
+data %>% select(CoupleID, phys_ipv_prev_couple, psych_ipv_prev_couple, psych_ipv_prev_couple_min, psych_ipv_prev_couple_sev, sgm_ipv_prev_couple) %>%
   group_by(CoupleID) %>% 
   summarize(across(everything(), ~ first(.x))) %>% 
   ungroup() %>% select(-CoupleID) %>% 
@@ -225,7 +275,7 @@ data %>% select(CoupleID, phys_ipv_prev_couple, psych_ipv_prev_couple, sgm_ipv_p
 
 ```{r}
 data %>% 
-  select(IHS_mean, CTS_phys_perp_HR, CTS_psych_perp_HR, CTS_sgm_perp_HR, PANAS_life_neg, PANAS_disc_neg) %>% 
+  select(IHS_mean, CTS_phys_perp_HR, CTS_psych_perp_HR, CTS_psych_perp_HR_minor, CTS_psych_perp_HR_severe, CTS_sgm_perp_HR, PANAS_life_neg, PANAS_disc_neg) %>% 
   summarize(across(everything(), list(mean = ~ mean(.x, na.rm = T),
                                       median = ~ median(.x, na.rm = T),
                                       sd = ~ sd(.x, na.rm = T),
@@ -240,7 +290,7 @@ data %>%
   mutate(max = round(max, digits = 2)) %>% 
   unite(range, c("min", "max"), sep = "-")
 ```
-Possible TO DO: save these descriptives into a table. If included in bivariate correlation table, flip `Colnames` and `.value` arguments above. 
+These descriptives can be saved into a table if needed. If included in bivariate correlation table, flip `Colnames` and `.value` arguments above. 
 
 # Reliability
 
@@ -258,14 +308,27 @@ data %>% select(IHS_1:IHS_9) %>% omega(plot = F)
 
 The reliability functions cannot accommodate missing data on any of the variables. If you do reliability with all 12 physical assault items, it will throw an error for `CTS_phys_weapon_perp` because this case is removed from the analysis. It will run excluding that item: 
 
+Phys:
 ```{r}
 data %>% select(CTS_phys_threw_perp:CTS_phys_kick_perp) %>% na.omit() %>% select(-CTS_phys_weapon_perp) %>% omega(plot = F)
 ```
 
+Psych overall:
 ```{r}
 data %>% select(CTS_psych_swore_perp:CTS_psych_threat_perp) %>% omega(plot = F)
 ```
 
+Psych minor:
+```{r}
+data %>% select(CTS_psych_swore_perp, CTS_psych_shout_perp, CTS_psych_stomp_perp, CTS_psych_spite_perp) %>% omega(plot = F)
+```
+
+Psych severe:
+```{r}
+data %>% select(CTS_psych_insult_perp, CTS_psych_destroy_perp, CTS_psych_lousy_perp, CTS_psych_threat_perp) %>% omega(plot = F)
+```
+
+SGM-specific:
 ```{r}
 data %>% select(CTS_sgm_threatout_perp:CTS_sgm_pda_perp) %>% omega(plot = F)
 ```
@@ -290,6 +353,8 @@ data %>% select(CSI_1:CSI_10, CSI_11r, CSI_12, CSI_13r, CSI_14r, CSI_15, CSI_16r
 
 
 # Correlations 
+
+NOTE FOR UPDATE: will update the code from here on down if there are different results for minor vs. severe psych aggression that would warrant separating them in the manuscript. 
 
 Ok so following recommendations from Kenny et al. 2006 (and Griffin & Gonzalez, 1995), we need to do a bivariate version of the intraclass correlation coefficient in order to get 1) regular ICCs for all variables, 2) intrapartner correlations (i.e. within-person) - however note that this still conflates dyad-level variability in those estimates, and 3) inter-partner correlations. 
 
@@ -343,7 +408,7 @@ corr_model <- brm(
 )
 ```
 
-That's a hell of a lot to work through and so I didn't bother to summarize the output here (but it did sample well). Let's wrangle that data into a matrix for reporting. We'll take advantage of the fact that the `matrix()` function in R will split up a single column into a matrix going down the column (e.g., if there are 10 values, values 1-5 go in column1 and then 6-10 go in column2). We'll use this to label the correlation coefficients from the output in the order that we want. I created an Excel sheet with what I wanted the correlation matrix to look like to guide me through this part. Perhaps one day I'll figure out a way to automate a function to do this for me automatically, but today is not that day. 
+That's a hell of a lot to work through and so I didn't summarize the output here (but it did sample well). Let's wrangle that data into a matrix for reporting. We'll take advantage of the fact that the `matrix()` function in R will split up a single column into a matrix going down the column (e.g., if there are 10 values, values 1-5 go in column1 and then 6-10 go in column2). We'll use this to label the correlation coefficients from the output in the order that we want. I created an Excel sheet with what I wanted the correlation matrix to look like to guide me through this part. Perhaps one day I'll figure out a way to automate a function to do this for me automatically, but today is not that day. 
 
 ```{r}
 output <- as_draws_df(corr_model) |> 

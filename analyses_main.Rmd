@@ -487,9 +487,7 @@ Also doing a really nice job here still!
 
 One thing to note for your future self is that the Intercept parameter in these hurdle models seems to correspond to the OVERALL mean in the data. It's not necessarily picking up on the mean of those who are > 0. 
 
-#### (to do) Psych IPV - severe 
-
-WIP***
+#### Psych IPV - severe 
 
 Now let's fiddle with some data simulation where the rate of zeroes in severe psych IPV is closer to 50% (vs. 80ish% for physical & SGM-specific IPV + 10% for overall & minor psych IPV).
 
@@ -553,7 +551,7 @@ Summarize:
 summary(sim_psych_3)
 ```
 
-We see here that it still does not do a great job at recovering the population parameters. 
+We see here that it does an OK (but not great) job of capturing the simulated data here. 
 
 ```{r}
 pp_check(sim_psych_3, ndraws = 100)
@@ -575,6 +573,34 @@ like_psych_1 <- brm(bf(CTS_psych_perp_HR ~ 1,
                   chains = 4, iter = 2000, warmup = 1000, cores = 4,
                   seed = 1234,
                   file = "fits/like_psych_1",
+                  file_refit = "on_change"
+                  )
+
+like_psych_min_1 <- brm(bf(CTS_psych_perp_HR_minor ~ 1,
+                     hu ~ 1),
+                  prior = c(prior(normal(1, 0.5), class = Intercept), # prior on mean (log scale)
+                            prior(normal(-1.5, 1), class = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                  data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_psych_min_1",
+                  file_refit = "on_change"
+                  )
+  
+like_psych_sev_1 <- brm(bf(CTS_psych_perp_HR_severe ~ 1,
+                     hu ~ 1),
+                  prior = c(prior(normal(1, 0.5), class = Intercept), # prior on mean (log scale)
+                            prior(normal(0, 0.5), class = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                  data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_psych_sev_1",
                   file_refit = "on_change"
                   )
 
@@ -612,6 +638,16 @@ Now let's summarize. Psychological:
 summary(like_psych_1)
 ```
 
+Psychological minor:
+```{r}
+summary(like_psych_min_1)
+```
+
+Psychological severe:
+```{r}
+summary(like_psych_sev_1)
+```
+
 Physical:
 ```{r}
 summary(like_phys_1)
@@ -627,6 +663,16 @@ Now we see that the intervals for all of these models are much tighter and withi
 Psychological:
 ```{r}
 pp_check(like_psych_1, ndraws = 100)
+```
+
+Psychological - minor:
+```{r}
+pp_check(like_psych_min_1, ndraws = 100)
+```
+
+Psychological - severe:
+```{r}
+pp_check(like_psych_sev_1, ndraws = 100)
 ```
 
 Physical:
@@ -659,6 +705,34 @@ like_psych_2 <- brm(bf(CTS_psych_perp_HR ~ 0 + Intercept + (1 | CoupleID),
                   chains = 4, iter = 2000, warmup = 1000, cores = 4,
                   seed = 1234,
                   file = "fits/like_psych_2",
+                  file_refit = "on_change"
+                  )
+
+like_psych_min_2 <- brm(bf(CTS_psych_perp_HR_minor ~ 0 + Intercept + (1 | CoupleID),
+                     hu ~ 0 + Intercept+ (1 | CoupleID)),
+                  prior = c(prior(normal(1, 0.5), class = b, coef = Intercept), # prior on mean (log scale)
+                            prior(normal(-1.5, 1), class = b, coef = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                  data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_psych_min_2",
+                  file_refit = "on_change"
+                  )
+
+like_psych_sev_2 <- brm(bf(CTS_psych_perp_HR_severe ~ 0 + Intercept + (1 | CoupleID),
+                     hu ~ 0 + Intercept+ (1 | CoupleID)),
+                  prior = c(prior(normal(1, 0.5), class = b, coef = Intercept), # prior on mean (log scale)
+                            prior(normal(0, 0.5), class = b, coef = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                  data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_psych_sev_2",
                   file_refit = "on_change"
                   )
 
@@ -700,6 +774,26 @@ summary(like_psych_2)
 & PPC:
 ```{r}
 pp_check(like_psych_2, ndraws = 100)
+```
+
+Psychological minor:
+```{r}
+summary(like_psych_min_2)
+```
+
+& PPC:
+```{r}
+pp_check(like_psych_min_2, ndraws = 100)
+```
+
+Psychological severe:
+```{r}
+summary(like_psych_sev_2)
+```
+
+& PPC:
+```{r}
+pp_check(like_psych_sev_2, ndraws = 100)
 ```
 
 Physical:
@@ -758,6 +852,36 @@ like_psych_3 <- brm(bf(CTS_psych_perp_HR ~ 0 + Intercept + (1 | CoupleID),
                   file_refit = "on_change"
                   )
 
+like_psych_min_3 <- brm(bf(CTS_psych_perp_HR_minor ~ 0 + Intercept + (1 | CoupleID),
+                     hu ~ 0 + Intercept+ (1 | CoupleID)),
+                  prior = c(prior(normal(1, 0.5), class = b, coef = Intercept), # prior on mean (log scale)
+                            prior(normal(-1.5, 1), class = b, coef = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(4), class = sd), # prior on couple variability
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                  data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_psych_min_3",
+                  file_refit = "on_change"
+                  )
+
+like_psych_sev_3 <- brm(bf(CTS_psych_perp_HR_severe ~ 0 + Intercept + (1 | CoupleID),
+                     hu ~ 0 + Intercept+ (1 | CoupleID)),
+                  prior = c(prior(normal(1, 0.5), class = b, coef = Intercept), # prior on mean (log scale)
+                            prior(normal(0, 0.5), class = b, coef = Intercept, dpar = hu), # prior on odds of being 0 (logit scale)
+                            prior(exponential(4), class = sd), # prior on couple variability
+                            prior(exponential(1), class = shape) # prior on dispersion
+                  ),
+                  data = data,
+                  family = hurdle_negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4,
+                  seed = 1234,
+                  file = "fits/like_psych_sev_3",
+                  file_refit = "on_change"
+                  )
+
 like_phys_3 <- brm(bf(CTS_phys_perp_HR ~ 0 + Intercept+ (1 | CoupleID),
                      hu ~ 0 + Intercept+ (1 | CoupleID)),
                   prior = c(prior(normal(0, 0.8), class = b, coef = Intercept), # prior on mean (log scale)
@@ -798,6 +922,28 @@ summary(like_psych_3)
 & PPC:
 ```{r}
 pp_check(like_psych_3, ndraws = 100)
+```
+
+Psychological minor:
+
+```{r}
+summary(like_psych_min_3)
+```
+
+& PPC:
+```{r}
+pp_check(like_psych_min_3, ndraws = 100)
+```
+
+Psychological severe:
+
+```{r}
+summary(like_psych_sev_3)
+```
+
+& PPC:
+```{r}
+pp_check(like_psych_sev_3, ndraws = 100)
 ```
 
 Physical:
@@ -876,7 +1022,7 @@ pp_check(like_sgm_3.1, ndraws = 100)
 
 Those are MUCH better posterior predictives, so let's go ahead and work with those models. 
 
-Given this decision to use logistic regression for physical and SGM-specific IPV perpetration due to the limited number of couples who perpetrated IPV, I also made the decision to simplify the models for psychological aggression to negative binomial models. This decision is based on making the models more parsimonious and the fact that the *vast* majority of people in this sample perpetrated some psychological aggression, so the hu/zero part of the model is going to be based on only 14 people. This is even less than the amount of people who perpetrated physical or SGM-specific IPV, so it seems appropriate to follow the same logic that the parameter estimates for these portions of the model are going to be based on very limited information. It will also make interpretation easier in line with the physical and SGM-specific forms of perpetration b/c we will not have to switch between occurrence/non-occurrence language here. 
+Given this decision to use logistic regression for physical and SGM-specific IPV perpetration due to the limited number of couples who perpetrated IPV, I also made the decision to simplify the models for psychological aggression to negative binomial models. This decision is based on making the models more parsimonious and the fact that the *vast* majority of people in this sample perpetrated some psychological aggression, so the hu/zero part of the model is going to be based on only 14 people. This is even less than the amount of people who perpetrated physical or SGM-specific IPV, so it seems appropriate to follow the same logic that the parameter estimates for these portions of the model are going to be based on very limited information. It will also make interpretation easier in line with the physical and SGM-specific forms of perpetration b/c we will not have to switch between occurrence/non-occurrence language here. This is less so the case for severe psychological aggression, though remains true for minor psychological aggression. For consistency and parismony, I decided to still simplify these models to negative binomial models.  
 
 ### Internalized stigma slope priors
 
@@ -886,7 +1032,7 @@ Small note b/c I'm not sure where else to put this: typically within a MLM for A
 
 Ok now back to the priors here. This gets really complicated/tricky because we are working on the log or log odds/logit scale, depending upon the portion of the model that we are estimating here. Here are some additional resources for making sense of this when you inevitably forget what you figured out when coming up with these priors: 
 
-- NEGATIVE logit regression coefficient means less likely to happen. 0 logit is 50/50 prob, above 0 is MORE likely to happen (from Nick's regression course) 
+- NEGATIVE logit regression coefficient means less likely to happen. 0 logit is 50/50 prob, above 0 is MORE likely to happen  
 
 - Conversion between odds, odds ratios, and probabilities can be done here: https://easystats.github.io/effectsize/articles/convert_p_OR_RR.html. 
 
@@ -1007,7 +1153,7 @@ summary(like_na, prob = .89)
 pp_check(like_na, ndraws = 100)
 ```
 
-Default priors are probably fine here. Note that the observed data has significant skew, which is why the model-implied values are not as cleanly estimated here. That's ok for now, and this is also how these data are mostly going to be esitmated. To keep with convention and to not make these models too wild, we're going to stick with a Gaussian likelihood for this study rather than introducing the skew_normal distribution into things. 
+Default priors are probably fine here. Note that the observed data has significant skew, which is why the model-implied values are not as cleanly estimated here. That's ok for now, and this is also how these data are mostly going to be estimated. To keep with convention and to not make these models too wild, we're going to stick with a Gaussian likelihood for this study rather than introducing the skew_normal distribution into things. 
 
 Next, let's add in the actor & partner effects of internalized stigma with default priors. This is a "proper" actor-partner interdependence model here b/c we are able to specify a compound symmetry correlation structure here. 
 

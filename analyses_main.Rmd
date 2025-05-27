@@ -1328,6 +1328,46 @@ aim1_psych <- brm(bf(CTS_psych_perp_HR ~ 0 + Intercept + IHS_mean_actor + IHS_me
                   file_refit = "on_change"
                   )
 
+aim1_psych_min <- brm(bf(CTS_psych_perp_HR_minor ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + (1 | CoupleID)),
+                  prior = c(# prior on mean (log scale)
+                            prior(normal(1, 0.5), class = b, coef = Intercept), 
+                            # priors for frequency
+                            prior(normal(0.8, 1), class = b, coef = IHS_mean_actor),
+                            prior(normal(0.8, 1), class = b, coef = IHS_mean_partner),
+                            # prior on couple variability
+                            prior(exponential(1), class = sd),
+                            # prior on dispersion parameter
+                            prior(exponential(1), class = shape) 
+                  ),
+                  data = data,
+                  family = negbinomial(),
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim1_psych_min",
+                  file_refit = "on_change"
+                  )
+
+aim1_psych_sev <- brm(bf(CTS_psych_perp_HR_severe ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + (1 | CoupleID)),
+                  prior = c(# prior on mean (log scale)
+                            prior(normal(1, 0.5), class = b, coef = Intercept), 
+                            # priors for frequency
+                            prior(normal(0.8, 1), class = b, coef = IHS_mean_actor),
+                            prior(normal(0.8, 1), class = b, coef = IHS_mean_partner),
+                            # prior on couple variability
+                            prior(exponential(1), class = sd),
+                            # prior on dispersion parameter
+                            prior(exponential(1), class = shape) 
+                  ),
+                  data = data,
+                  family = negbinomial(),
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim1_psych_sev",
+                  file_refit = "on_change"
+                  )
+
 aim1_phys <- brm(bf(CTS_phys_perp_binary ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + (1 | CoupleID)),
                   prior = c(# prior on odds of being 1 (logit scale)
                             prior(normal(1.5, 1), class = b, coef = Intercept), 
@@ -1381,6 +1421,37 @@ pp_check(aim1_psych, ndraws = 100)
 
 We see here that the model does a pretty good job of generating predictiosn that look like our data. 
 
+### Psychological - minor
+
+Summarize output: 
+```{r}
+summary(aim1_psych_min, prob = .89)
+```
+
+We see here that we have evidence of positive, reliable actor and partner effects of internalized stigma on the frequency of psychological IPV perpetration. The results are similar to the overall psych aggression scores. 
+
+PPC:
+```{r}
+pp_check(aim1_psych_min, ndraws = 100)
+```
+
+We see here that the model does a pretty good job of generating predictions that look like our data. 
+
+### Psychological - severe
+
+Summarize output: 
+```{r}
+summary(aim1_psych_sev, prob = .89)
+```
+
+We see here that we have evidence of positive, reliable actor and partner effects of internalized stigma on the frequency of psychological IPV perpetration. Results are consistent with the minor & overall psych IPV models, with the exception of the intercept term that is now generally negative and compatible with zero. 
+
+PPC:
+```{r}
+pp_check(aim1_psych_sev, ndraws = 100)
+```
+
+We see here that the model generates some predictions that are outside the range of observed data. 
 
 ### Physical
 
@@ -1390,7 +1461,7 @@ Summary:
 summary(aim1_phys, prob = .89)
 ```
 
-We see here that there's an estimated positive effect of actor and partner internalized stigma on the log odds of physical IPV pereptration. However, this effect is pretty variable and not reliably different from zero. 
+We see here that there's an estimated positive effect of actor and partner internalized stigma on the log odds of physical IPV perpetration. However, this effect is pretty variable and not reliably different from zero. 
 
 PPC:
 ```{r}
@@ -1406,7 +1477,7 @@ Summarize:
 summary(aim1_sgm, prob = .89)
 ```
 
-Here we see evidence of a positive, reliable partner internalized stigma effect on log odds of perpetrating SGM-related IPV. There's an estimated positive effect for actor internalized stigma as well, but this is not reliably ddifferent from zero. 
+Here we see evidence of a positive, reliable partner internalized stigma effect on log odds of perpetrating SGM-related IPV. There's an estimated positive effect for actor internalized stigma as well, but this is not reliably different from zero. 
 
 PPC:
 ```{r}
@@ -1446,6 +1517,60 @@ aim1_psych_cov <- brm(bf(CTS_psych_perp_HR ~ 0 + Intercept + IHS_mean_actor + IH
                   seed = 1234,
                   control = list(adapt_delta = .99),
                   file = "fits/aim1_psych_cov",
+                  file_refit = "on_change"
+                  )
+
+aim1_psych_cov_min <- brm(bf(CTS_psych_perp_HR_minor ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + Age + rel_length_yrs + sxlorx_dich + gender_three + race_dich + (1 | CoupleID)),
+                  prior = c(# prior on mean (log scale)
+                            prior(normal(1, 0.5), class = b, coef = Intercept), 
+                            # priors for frequency
+                            prior(normal(0.8, 1), class = b, coef = IHS_mean_actor),
+                            prior(normal(0.8, 1), class = b, coef = IHS_mean_partner),
+                            # priors for covariates
+                            prior(normal(0, 0.5), class = b, coef = Age),
+                            prior(normal(0, 0.5), class = b, coef = rel_length_yrs),
+                            prior(normal(0, 0.5), class = b, coef = sxlorx_dichBiP),
+                            prior(normal(0, 0.5), class = b, coef = gender_threeCisman),
+                            prior(normal(0, 0.5), class = b, coef = gender_threeGenderdiverse),
+                            prior(normal(0, 0.5), class = b, coef = race_dichBIPOC),
+                            # prior on couple variability
+                            prior(exponential(1), class = sd),
+                            # prior on dispersion parameter
+                            prior(exponential(1), class = shape) 
+                  ),
+                  data = data,
+                  family = negbinomial(),
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim1_psych_cov_min",
+                  file_refit = "on_change"
+                  )
+
+aim1_psych_cov_sev <- brm(bf(CTS_psych_perp_HR_severe ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + Age + rel_length_yrs + sxlorx_dich + gender_three + race_dich + (1 | CoupleID)),
+                  prior = c(# prior on mean (log scale)
+                            prior(normal(1, 0.5), class = b, coef = Intercept), 
+                            # priors for frequency
+                            prior(normal(0.8, 1), class = b, coef = IHS_mean_actor),
+                            prior(normal(0.8, 1), class = b, coef = IHS_mean_partner),
+                            # priors for covariates
+                            prior(normal(0, 0.5), class = b, coef = Age),
+                            prior(normal(0, 0.5), class = b, coef = rel_length_yrs),
+                            prior(normal(0, 0.5), class = b, coef = sxlorx_dichBiP),
+                            prior(normal(0, 0.5), class = b, coef = gender_threeCisman),
+                            prior(normal(0, 0.5), class = b, coef = gender_threeGenderdiverse),
+                            prior(normal(0, 0.5), class = b, coef = race_dichBIPOC),
+                            # prior on couple variability
+                            prior(exponential(1), class = sd),
+                            # prior on dispersion parameter
+                            prior(exponential(1), class = shape) 
+                  ),
+                  data = data,
+                  family = negbinomial(),
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim1_psych_cov_sev",
                   file_refit = "on_change"
                   )
 
@@ -1508,6 +1633,23 @@ summary(aim1_psych_cov, prob = .89)
 ```
 Generally, covariates were not reliably related to psychological IPV perpetration with the exception of relationship length, which just barely passed over the 0 threshold. We also see that the estimates of the actor & partner effects are pretty similar, though they decrease slightly. 
 
+### Psychological - minor 
+
+Summarize:
+```{r}
+summary(aim1_psych_cov_min, prob = .89)
+```
+Generally, covariates were not reliably related to psychological IPV perpetration with the exception of relationship length, which just barely passed over the 0 threshold. We also see that the estimates of the actor & partner effects are pretty similar, though they decrease slightly. 
+
+### Psychological - severe
+
+Summarize:
+```{r}
+summary(aim1_psych_cov_sev, prob = .89)
+```
+Generally, covariates were not reliably related to psychological IPV perpetration with the exception of relationship length, which just barely passed over the 0 threshold. We also see that the estimates of the actor & partner effects are pretty similar, though they decrease slightly. 
+
+
 ### Physical 
 
 Summarize:
@@ -1524,7 +1666,7 @@ Summarize:
 summary(aim1_sgm_cov, prob = .89)
 ```
 
-Again, not much of a change. Interestingly being a person of color was more positively related to increased odds of using SGM-specific IPV--this was different from the other forms of IPV. Also relationship length was not as strongly related. 
+Again, not much of a change. 
 
 ## Sensitivity to priors
 
@@ -1544,6 +1686,38 @@ aim1_psych_1 <- brm(bf(CTS_psych_perp_HR ~ 0 + Intercept + IHS_mean_actor + IHS_
                   chains = 4, iter = 2000, warmup = 1000, cores = 4, 
                   seed = 1234,
                   file = "fits/aim1_psych_1",
+                  file_refit = "on_change"
+                  )
+
+aim1_psych_1_min <- brm(bf(CTS_psych_perp_HR_minor ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + (1 | CoupleID)),
+                  prior = c(# prior on mean (log scale)
+                            prior(normal(1, 0.5), class = b, coef = Intercept), 
+                            # prior on couple variability
+                            prior(exponential(1), class = sd),
+                            # prior on dispersion parameter
+                            prior(exponential(1), class = shape) 
+                  ),
+                  data = data,
+                  family = negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  file = "fits/aim1_psych_1_min",
+                  file_refit = "on_change"
+                  )
+
+aim1_psych_1_sev <- brm(bf(CTS_psych_perp_HR_severe ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + (1 | CoupleID)),
+                  prior = c(# prior on mean (log scale)
+                            prior(normal(1, 0.5), class = b, coef = Intercept), 
+                            # prior on couple variability
+                            prior(exponential(1), class = sd),
+                            # prior on dispersion parameter
+                            prior(exponential(1), class = shape) 
+                  ),
+                  data = data,
+                  family = negbinomial(),
+                  chains = 4, iter = 2000, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  file = "fits/aim1_psych_1_sev",
                   file_refit = "on_change"
                   )
 
@@ -1581,6 +1755,10 @@ Summarize:
 ```{r}
 summary(aim1_psych_1, prob = .89)
 
+summary(aim1_psych_1_min, prob = .89)
+
+summary(aim1_psych_1_sev, prob = .89)
+
 summary(aim1_phys_1, prob = .89)
 
 summary(aim1_sgm_1, prob = .89)
@@ -1603,6 +1781,40 @@ aim1_psych_cov_1 <- brm(bf(CTS_psych_perp_HR ~ 0 + Intercept + IHS_mean_actor + 
                   seed = 1234,
                   control = list(adapt_delta = .99),
                   file = "fits/aim1_psych_cov_1",
+                  file_refit = "on_change"
+                  )
+
+aim1_psych_cov_1_min <- brm(bf(CTS_psych_perp_HR_minor ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + Age + rel_length_yrs + sxlorx_dich + gender_three + race_dich + (1 | CoupleID)),
+                  prior = c(# prior on mean (log scale)
+                            prior(normal(1, 0.5), class = b, coef = Intercept), 
+                            # prior on couple variability
+                            prior(exponential(1), class = sd),
+                            # prior on dispersion parameter
+                            prior(exponential(1), class = shape) 
+                  ),
+                  data = data,
+                  family = negbinomial(),
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim1_psych_cov_1_min",
+                  file_refit = "on_change"
+                  )
+
+aim1_psych_cov_1_sev <- brm(bf(CTS_psych_perp_HR_severe ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + Age + rel_length_yrs + sxlorx_dich + gender_three + race_dich + (1 | CoupleID)),
+                  prior = c(# prior on mean (log scale)
+                            prior(normal(1, 0.5), class = b, coef = Intercept), 
+                            # prior on couple variability
+                            prior(exponential(1), class = sd),
+                            # prior on dispersion parameter
+                            prior(exponential(1), class = shape) 
+                  ),
+                  data = data,
+                  family = negbinomial(),
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim1_psych_cov_1_sev",
                   file_refit = "on_change"
                   )
 
@@ -1639,6 +1851,10 @@ Summary:
 ```{r}
 summary(aim1_psych_cov_1, prob = .89)
 
+summary(aim1_psych_cov_1_min, prob = .89)
+
+summary(aim1_psych_cov_1_sev, prob = .89)
+
 summary(aim1_phys_cov_1, prob = .89)
 
 summary(aim1_sgm_cov_1, prob = .89)
@@ -1646,9 +1862,11 @@ summary(aim1_sgm_cov_1, prob = .89)
 
 Ok it looks like our models are not that sensitive to the priors we put on the regression relationships. If anything our priors downwardly bias the estimates there. 
 
-Of note, we do see that we start to get pretty wild/unlikely regression relationships for the physical & SGM-specific IPV models when we include covariates. Our priors keep things a lot more tame there, and importantly our choice of prior does not affect ssubstantive conclusions for any of the effects here (e.g., the partner internnalized stigma effect). 
+Of note, we do see that we start to get pretty wild/unlikely regression relationships for the physical & SGM-specific IPV models when we include covariates. Our priors keep things a lot more tame there, and importantly our choice of prior does not affect substantive conclusions for any of the effects here (e.g., the partner internalized stigma effect). 
 
 ## Pulling results for reporting 
+
+TO DO: edit this section if needed to pull results for minor/severe
 
 Next we want to pull up the results in a way that makes it easy to report in tables. We're going to rely on the `tidybayes` package for this. 
 

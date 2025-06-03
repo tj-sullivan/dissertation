@@ -1349,7 +1349,7 @@ aim1_psych_min <- brm(bf(CTS_psych_perp_HR_minor ~ 0 + Intercept + IHS_mean_acto
                   )
 
 aim1_psych_sev <- brm(bf(CTS_psych_perp_HR_severe ~ 0 + Intercept + IHS_mean_actor + IHS_mean_partner + (1 | CoupleID)),
-                  prior = c(# prior on mean (log scale)
+                  prior = c(# prior on mean (log scale) - note same for overall & minor psych aggression 
                             prior(normal(1, 0.5), class = b, coef = Intercept), 
                             # priors for frequency
                             prior(normal(0.8, 1), class = b, coef = IHS_mean_actor),
@@ -2285,6 +2285,18 @@ y_mod_psych <- bf(CTS_psych_perp_HR ~ 0 + Intercept +
                     PANAS_life_neg_actor + PANAS_life_neg_partner +
                     (1 | CoupleID), family = "negbinomial")
 
+y_mod_psych_min <- bf(CTS_psych_perp_HR_minor ~ 0 + Intercept + 
+                    IHS_mean_actor + IHS_mean_partner + 
+                    PANAS_disc_neg_actor + PANAS_disc_neg_partner +
+                    PANAS_life_neg_actor + PANAS_life_neg_partner +
+                    (1 | CoupleID), family = "negbinomial")
+
+y_mod_psych_sev <- bf(CTS_psych_perp_HR_severe ~ 0 + Intercept + 
+                    IHS_mean_actor + IHS_mean_partner + 
+                    PANAS_disc_neg_actor + PANAS_disc_neg_partner +
+                    PANAS_life_neg_actor + PANAS_life_neg_partner +
+                    (1 | CoupleID), family = "negbinomial")
+
 y_mod_phys <- bf(CTS_phys_perp_binary ~ 0 + Intercept + 
                     IHS_mean_actor + IHS_mean_partner + 
                     PANAS_disc_neg_actor + PANAS_disc_neg_partner +
@@ -2421,6 +2433,250 @@ psych_draws |>
   median_qi(value, .width = .89)
 ```
 We see here that these contrasts are not reliably different from zero, which means that the strength of association in the two indirect pathways may overlap substantially. 
+
+### Psychological - minor 
+
+Set the priors: 
+```{r}
+psych_prior_min <- c(
+## IPV PERPETRATION
+  # prior on mean (log scale)
+  prior(normal(1, 0.5), class = b, coef = Intercept, resp = CTSpsychperpHRminor), 
+  # priors for frequency
+  prior(normal(0.8, 1), class = b, coef = IHS_mean_actor, resp = CTSpsychperpHRminor),
+  prior(normal(0.8, 1), class = b, coef = IHS_mean_partner, resp = CTSpsychperpHRminor),
+  # priors for negative affect predicting IPV
+  prior(normal(0.5, 1), class = b, coef = PANAS_disc_neg_actor, resp = CTSpsychperpHRminor),
+  prior(normal(0.5, 1), class = b, coef = PANAS_disc_neg_partner, resp = CTSpsychperpHRminor),
+  prior(normal(0.5, 1), class = b, coef = PANAS_life_neg_actor, resp = CTSpsychperpHRminor),
+  prior(normal(0.5, 1), class = b, coef = PANAS_life_neg_partner, resp = CTSpsychperpHRminor),
+  # prior on couple variability
+  prior(exponential(1), class = sd, resp = CTSpsychperpHRminor),
+  # prior on dispersion parameter
+  prior(exponential(1), cminor),
+
+## NEGATIVE AFFECT
+  # prior for mean NA
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegpartner),
+  # priors for internalized stigma predicting negative affect
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegactor), 
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegpartner),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegactor),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegactor), 
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegactor),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegpartner),
+  # priors for sigma (negative affect)
+  prior(exponential(1), class = sigma, resp = PANASdiscnegactor),
+  prior(exponential(1), class = sigma, resp = PANASdiscnegpartner),
+  prior(exponential(1), class = sigma, resp = PANASlifenegactor),
+  prior(exponential(1), class = sigma, resp = PANASlifenegpartner)
+)
+```
+
+Run the model:
+```{r, warning = F}
+aim3_psych_min <- brm(m1_actor + m1_partner + m2_actor + m2_partner + y_mod_psych_min + set_rescor(rescor = F),
+                  prior = psych_prior_min,
+                  data = data,
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim3_psych_min",
+                  file_refit = "on_change")
+```
+
+Check it out:
+```{r}
+summary(aim3_psych_min, prob = .89)
+```
+
+Calculate indirect effects via the product-of-coefficients approach:
+
+```{r}
+psych_draws_min <- as_draws_df(aim3_psych_min)
+
+psych_draws_min <- psych_draws_min |> 
+  # first, rename variables to be consistent with a, b, and c frameworks 
+  mutate(a1 = b_PANASdiscnegactor_IHS_mean_actor,
+         a2 = b_PANASdiscnegpartner_IHS_mean_actor,
+         a3 = b_PANASdiscnegactor_IHS_mean_partner,
+         a4 = b_PANASdiscnegpartner_IHS_mean_partner,
+         b1 = b_CTSpsychperpHRminor_PANAS_disc_neg_actor,
+         b2 = b_CTSpsychperpHRminor_PANAS_disc_neg_partner,
+         
+         a5 = b_PANASlifenegactor_IHS_mean_actor,
+         a6 = b_PANASlifenegpartner_IHS_mean_actor,
+         a7 = b_PANASlifenegactor_IHS_mean_partner,
+         a8 = b_PANASlifenegpartner_IHS_mean_partner,
+         b3 = b_CTSpsychperpHRminor_PANAS_life_neg_actor,
+         b4 = b_CTSpsychperpHRminor_PANAS_life_neg_partner,
+         
+         c_prime1 = b_CTSpsychperpHRminor_IHS_mean_actor,
+         c_prime2 = b_CTSpsychperpHRminor_IHS_mean_partner
+         ) |> 
+  mutate(a1b1 = a1 * b1,
+         a2b2 = a2 * b2,
+         a3b1 = a3 * b1,
+         a4b2 = a4 * b2,
+         
+         a5b3 = a5 * b3,
+         a6b4 = a6 * b4,
+         a7b3 = a7 * b3,
+         a8b4 = a8 * b4)
+```
+
+
+Next, we'll summarize those indirect effects:
+```{r, warning = F}
+psych_draws_min |> 
+  select(a1b1:a8b4) |> 
+  pivot_longer(a1b1:a8b4) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+
+Ok we see that 1 indirect effect is reliably different form zero: a5b3 (actor IS --> actor NA post life stressor discussion --> minor psych IPV). The a8b4 (partner IS --> partner NA post life stressor discussion --> psych IPV) effect is no longer reliably different from zero. 
+
+One important thing here is that the two indirect effects that are being compared here are DIFFERENT IN SIGN. Following recommendations from Hayes (2022), we'll calculate the difference between the absolute values of the indirect effect estimates so we can evaluate whether they differ in strength. 
+
+```{r, warning = F}
+psych_draws_min <- psych_draws_min |> 
+  mutate(comp1 = abs(a5b3) - abs(a1b1))
+
+psych_draws_min |> 
+  select(comp1) |> 
+  pivot_longer(comp1) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+We see here that this contrast is  not reliably different from zero, which means that the strength of association in the indirect pathway may overlap substantially. 
+
+### Psychological - severe 
+
+Set the priors: 
+```{r}
+psych_prior_sev <- c(
+## IPV PERPETRATION
+  # prior on mean (log scale)
+  prior(normal(1, 0.5), class = b, coef = Intercept, resp = CTSpsychperpHRsevere), 
+  # priors for frequency
+  prior(normal(0.8, 1), class = b, coef = IHS_mean_actor, resp = CTSpsychperpHRsevere),
+  prior(normal(0.8, 1), class = b, coef = IHS_mean_partner, resp = CTSpsychperpHRsevere),
+  # priors for negative affect predicting IPV
+  prior(normal(0.5, 1), class = b, coef = PANAS_disc_neg_actor, resp = CTSpsychperpHRsevere),
+  prior(normal(0.5, 1), class = b, coef = PANAS_disc_neg_partner, resp = CTSpsychperpHRsevere),
+  prior(normal(0.5, 1), class = b, coef = PANAS_life_neg_actor, resp = CTSpsychperpHRsevere),
+  prior(normal(0.5, 1), class = b, coef = PANAS_life_neg_partner, resp = CTSpsychperpHRsevere),
+  # prior on couple variability
+  prior(exponential(1), class = sd, resp = CTSpsychperpHRsevere),
+  # prior on dispersion parameter
+  prior(exponential(1), class = shape, resp = CTSpsychperpHRsevere),
+
+## NEGATIVE AFFECT
+  # prior for mean NA
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegpartner),
+  # priors for internalized stigma predicting negative affect
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegactor), 
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegpartner),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegactor),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegactor), 
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegactor),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegpartner),
+  # priors for sigma (negative affect)
+  prior(exponential(1), class = sigma, resp = PANASdiscnegactor),
+  prior(exponential(1), class = sigma, resp = PANASdiscnegpartner),
+  prior(exponential(1), class = sigma, resp = PANASlifenegactor),
+  prior(exponential(1), class = sigma, resp = PANASlifenegpartner)
+)
+```
+
+Run the model:
+```{r, warning = F}
+aim3_psych_sev <- brm(m1_actor + m1_partner + m2_actor + m2_partner + y_mod_psych_sev + set_rescor(rescor = F),
+                  prior = psych_prior_sev,
+                  data = data,
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim3_psych_sev",
+                  file_refit = "on_change")
+```
+
+Check it out:
+```{r}
+summary(aim3_psych_sev, prob = .89)
+```
+
+Calculate indirect effects via the product-of-coefficients approach:
+
+```{r}
+psych_draws_sev <- as_draws_df(aim3_psych_sev)
+
+psych_draws_sev <- psych_draws_sev |> 
+  # first, rename variables to be consistent with a, b, and c frameworks 
+  mutate(a1 = b_PANASdiscnegactor_IHS_mean_actor,
+         a2 = b_PANASdiscnegpartner_IHS_mean_actor,
+         a3 = b_PANASdiscnegactor_IHS_mean_partner,
+         a4 = b_PANASdiscnegpartner_IHS_mean_partner,
+         b1 = b_CTSpsychperpHRsevere_PANAS_disc_neg_actor,
+         b2 = b_CTSpsychperpHRsevere_PANAS_disc_neg_partner,
+         
+         a5 = b_PANASlifenegactor_IHS_mean_actor,
+         a6 = b_PANASlifenegpartner_IHS_mean_actor,
+         a7 = b_PANASlifenegactor_IHS_mean_partner,
+         a8 = b_PANASlifenegpartner_IHS_mean_partner,
+         b3 = b_CTSpsychperpHRsevere_PANAS_life_neg_actor,
+         b4 = b_CTSpsychperpHRsevere_PANAS_life_neg_partner,
+         
+         c_prime1 = b_CTSpsychperpHRsevere_IHS_mean_actor,
+         c_prime2 = b_CTSpsychperpHRsevere_IHS_mean_partner
+         ) |> 
+  mutate(a1b1 = a1 * b1,
+         a2b2 = a2 * b2,
+         a3b1 = a3 * b1,
+         a4b2 = a4 * b2,
+         
+         a5b3 = a5 * b3,
+         a6b4 = a6 * b4,
+         a7b3 = a7 * b3,
+         a8b4 = a8 * b4)
+```
+
+
+Next, we'll summarize those indirect effects:
+```{r, warning = F}
+psych_draws_sev |> 
+  select(a1b1:a8b4) |> 
+  pivot_longer(a1b1:a8b4) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+We see one of the two indirect effects for overall psych that is reliably different from zero: a8b4 (partner IS --> partner NA post life stressor discussion --> severe psych IPV). This is different than minor where the a5b3 (but not a8b4) was reliably different from zero. For Aim 3, we'll calculate the difference in the size of those indirect effects to see if they are different from the discrimination stressor discussion. 
+
+One important thing here is that the two indirect effects that are being compared here are DIFFERENT IN SIGN. Following recommendations from Hayes (2022), we'll calculate the difference between the absolute values of the indirect effect estimates so we can evaluate whether they differ in strength. 
+
+```{r, warning = F}
+psych_draws_sev <- psych_draws_sev |> 
+  mutate(comp2 = abs(a8b4) - abs(a4b2))
+
+psych_draws_sev |> 
+  select(comp2) |> 
+  pivot_longer(comp2) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+We see here that these contrasts are not reliably different from zero, which means that the strength of association in the two indirect pathways may overlap substantially. 
+
 
 ### Physical
 
@@ -2661,6 +2917,20 @@ y_mod_psych_cov <- bf(CTS_psych_perp_HR ~ 0 + Intercept +
                     Age + rel_length_yrs + sxlorx_dich + gender_three + race_dich + 
                     (1 | CoupleID), family = "negbinomial")
 
+y_mod_psych_cov_min <- bf(CTS_psych_perp_HR_minor ~ 0 + Intercept + 
+                    IHS_mean_actor + IHS_mean_partner + 
+                    PANAS_disc_neg_actor + PANAS_disc_neg_partner +
+                    PANAS_life_neg_actor + PANAS_life_neg_partner +
+                    Age + rel_length_yrs + sxlorx_dich + gender_three + race_dich + 
+                    (1 | CoupleID), family = "negbinomial")
+
+y_mod_psych_cov_sev <- bf(CTS_psych_perp_HR_severe ~ 0 + Intercept + 
+                    IHS_mean_actor + IHS_mean_partner + 
+                    PANAS_disc_neg_actor + PANAS_disc_neg_partner +
+                    PANAS_life_neg_actor + PANAS_life_neg_partner +
+                    Age + rel_length_yrs + sxlorx_dich + gender_three + race_dich + 
+                    (1 | CoupleID), family = "negbinomial")
+
 y_mod_phys_cov <- bf(CTS_phys_perp_binary ~ 0 + Intercept + 
                     IHS_mean_actor + IHS_mean_partner + 
                     PANAS_disc_neg_actor + PANAS_disc_neg_partner +
@@ -2679,6 +2949,288 @@ y_mod_sgm_cov <- bf(CTS_sgm_perp_binary ~ 0 + Intercept +
 
 
 ### Psychological
+
+Set the priors:
+```{r}
+psych_prior_cov <- c(
+## IPV PERPETRATION
+  # prior on mean (log scale)
+  prior(normal(1, 0.5), class = b, coef = Intercept, resp = CTSpsychperpHR), 
+  # priors for frequency
+  prior(normal(0.8, 1), class = b, coef = IHS_mean_actor, resp = CTSpsychperpHR),
+  prior(normal(0.8, 1), class = b, coef = IHS_mean_partner, resp = CTSpsychperpHR),
+  # priors for negative affect predicting IPV
+  prior(normal(0.5, 1), class = b, coef = PANAS_disc_neg_actor, resp = CTSpsychperpHR),
+  prior(normal(0.5, 1), class = b, coef = PANAS_disc_neg_partner, resp = CTSpsychperpHR),
+  prior(normal(0.5, 1), class = b, coef = PANAS_life_neg_actor, resp = CTSpsychperpHR),
+  prior(normal(0.5, 1), class = b, coef = PANAS_life_neg_partner, resp = CTSpsychperpHR),
+  # prior on couple variability
+  prior(exponential(1), class = sd, resp = CTSpsychperpHR),
+  # prior on dispersion parameter
+  prior(exponential(1), class = shape, resp = CTSpsychperpHR),
+  # priors for covariates
+  prior(normal(0, 0.5), class = b, coef = Age, resp = CTSpsychperpHR),
+  prior(normal(0, 0.5), class = b, coef = rel_length_yrs, resp = CTSpsychperpHR),
+  prior(normal(0, 0.5), class = b, coef = sxlorx_dichBiP, resp = CTSpsychperpHR),
+  prior(normal(0, 0.5), class = b, coef = gender_threeCisman, resp = CTSpsychperpHR),
+  prior(normal(0, 0.5), class = b, coef = gender_threeGenderdiverse, resp = CTSpsychperpHR),
+  prior(normal(0, 0.5), class = b, coef = race_dichBIPOC, resp = CTSpsychperpHR),
+
+## NEGATIVE AFFECT
+  # prior for mean NA
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegpartner),
+  # priors for internalized stigma predicting negative affect
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegactor), 
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegpartner),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegactor),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegactor), 
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegactor),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegpartner),
+  # priors for sigma (negative affect)
+  prior(exponential(1), class = sigma, resp = PANASdiscnegactor),
+  prior(exponential(1), class = sigma, resp = PANASdiscnegpartner),
+  prior(exponential(1), class = sigma, resp = PANASlifenegactor),
+  prior(exponential(1), class = sigma, resp = PANASlifenegpartner),
+  # priors for covariates 
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_disc, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_discJointstressor, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_sev, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_choiceChosenfordiscussion, resp = PANASdiscnegactor),
+  
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_disc, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_discJointstressor, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_sev, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_choiceChosenfordiscussion, resp = PANASdiscnegpartner),
+  
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_life, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_lifeJointstressor, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = StressorTopic_choiceChosenfordiscussion, resp = PANASlifenegactor),
+  
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_life, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_lifeJointstressor, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = StressorTopic_choiceChosenfordiscussion, resp = PANASlifenegpartner)
+)
+```
+
+Run the model:
+```{r, warning = F}
+aim3_psych_cov <- brm(m1_actor_cov + m1_partner_cov + m2_actor_cov + m2_partner_cov + y_mod_psych_cov + set_rescor(rescor = F),
+                  prior = psych_prior_cov,
+                  data = data,
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim3_psych_cov",
+                  file_refit = "on_change")
+```
+
+Summarize:
+```{r}
+summary(aim3_psych_cov, prob = .89)
+```
+
+Calculate indirect effects:
+
+```{r}
+psych_cov_draws <- as_draws_df(aim3_psych_cov)
+
+psych_cov_draws <- psych_cov_draws |> 
+  mutate(a1 = b_PANASdiscnegactor_IHS_mean_actor,
+         a2 = b_PANASdiscnegpartner_IHS_mean_actor,
+         a3 = b_PANASdiscnegactor_IHS_mean_partner,
+         a4 = b_PANASdiscnegpartner_IHS_mean_partner,
+         b1 = b_CTSpsychperpHR_PANAS_disc_neg_actor,
+         b2 = b_CTSpsychperpHR_PANAS_disc_neg_partner,
+         
+         a5 = b_PANASlifenegactor_IHS_mean_actor,
+         a6 = b_PANASlifenegpartner_IHS_mean_actor,
+         a7 = b_PANASlifenegactor_IHS_mean_partner,
+         a8 = b_PANASlifenegpartner_IHS_mean_partner,
+         b3 = b_CTSpsychperpHR_PANAS_life_neg_actor,
+         b4 = b_CTSpsychperpHR_PANAS_life_neg_partner,
+         
+         c_prime1 = b_CTSpsychperpHR_IHS_mean_actor,
+         c_prime2 = b_CTSpsychperpHR_IHS_mean_partner
+         ) |> 
+  mutate(a1b1 = a1 * b1,
+         a2b2 = a2 * b2,
+         a3b1 = a3 * b1,
+         a4b2 = a4 * b2,
+         
+         a5b3 = a5 * b3,
+         a6b4 = a6 * b4,
+         a7b3 = a7 * b3,
+         a8b4 = a8 * b4)
+```
+
+Summarize indirect effect output:
+```{r, warning = F}
+psych_cov_draws |> 
+  select(a1b1:a8b4) |> 
+  pivot_longer(a1b1:a8b4) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+
+We see here now that none of the indirect effects were reliably different from zero. This could potentially be because we included dyadic coping as a covariate, which be a mediator along the pathway from internalized stigma --> negative affect after life stressor discususions --> psychological IPV perpetration. This is because these indirect effects are no longer reliably different from zero when we include it in models. 
+
+### Psychological - minor (NEED TO EDIT)
+
+Set the priors:
+```{r}
+psych_prior_cov <- c(
+## IPV PERPETRATION
+  # prior on mean (log scale)
+  prior(normal(1, 0.5), class = b, coef = Intercept, resp = CTSpsychperpHR), 
+  # priors for frequency
+  prior(normal(0.8, 1), class = b, coef = IHS_mean_actor, resp = CTSpsychperpHR),
+  prior(normal(0.8, 1), class = b, coef = IHS_mean_partner, resp = CTSpsychperpHR),
+  # priors for negative affect predicting IPV
+  prior(normal(0.5, 1), class = b, coef = PANAS_disc_neg_actor, resp = CTSpsychperpHR),
+  prior(normal(0.5, 1), class = b, coef = PANAS_disc_neg_partner, resp = CTSpsychperpHR),
+  prior(normal(0.5, 1), class = b, coef = PANAS_life_neg_actor, resp = CTSpsychperpHR),
+  prior(normal(0.5, 1), class = b, coef = PANAS_life_neg_partner, resp = CTSpsychperpHR),
+  # prior on couple variability
+  prior(exponential(1), class = sd, resp = CTSpsychperpHR),
+  # prior on dispersion parameter
+  prior(exponential(1), class = shape, resp = CTSpsychperpHR),
+  # priors for covariates
+  prior(normal(0, 0.5), class = b, coef = Age, resp = CTSpsychperpHR),
+  prior(normal(0, 0.5), class = b, coef = rel_length_yrs, resp = CTSpsychperpHR),
+  prior(normal(0, 0.5), class = b, coef = sxlorx_dichBiP, resp = CTSpsychperpHR),
+  prior(normal(0, 0.5), class = b, coef = gender_threeCisman, resp = CTSpsychperpHR),
+  prior(normal(0, 0.5), class = b, coef = gender_threeGenderdiverse, resp = CTSpsychperpHR),
+  prior(normal(0, 0.5), class = b, coef = race_dichBIPOC, resp = CTSpsychperpHR),
+
+## NEGATIVE AFFECT
+  # prior for mean NA
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegactor),
+  prior(normal(0, 0.25), class = b, coef = Intercept, resp = PANASlifenegpartner),
+  # priors for internalized stigma predicting negative affect
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegactor), 
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASdiscnegpartner),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegactor),
+  prior(normal(0.15, 0.3), class = b, coef = IHS_mean_actor, resp = PANASlifenegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegactor), 
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASdiscnegpartner),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegactor),
+  prior(normal(0, 0.3), class = b, coef = IHS_mean_partner, resp = PANASlifenegpartner),
+  # priors for sigma (negative affect)
+  prior(exponential(1), class = sigma, resp = PANASdiscnegactor),
+  prior(exponential(1), class = sigma, resp = PANASdiscnegpartner),
+  prior(exponential(1), class = sigma, resp = PANASlifenegactor),
+  prior(exponential(1), class = sigma, resp = PANASlifenegpartner),
+  # priors for covariates 
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_disc, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_discJointstressor, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_sev, resp = PANASdiscnegactor),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_choiceChosenfordiscussion, resp = PANASdiscnegactor),
+  
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_disc, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_discJointstressor, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_sev, resp = PANASdiscnegpartner),
+  prior(normal(0, 1), class = b, coef = DiscrimTopic_choiceChosenfordiscussion, resp = PANASdiscnegpartner),
+  
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_life, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_lifeJointstressor, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegactor),
+  prior(normal(0, 1), class = b, coef = StressorTopic_choiceChosenfordiscussion, resp = PANASlifenegactor),
+  
+  prior(normal(0, 1), class = b, coef = CSI_sum, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = DiscussionOrderLifestressordiscussionfirst, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = GlobalCoping_rc_life, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = stressor_type_rc_lifeJointstressor, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = StressorTopic_sev, resp = PANASlifenegpartner),
+  prior(normal(0, 1), class = b, coef = StressorTopic_choiceChosenfordiscussion, resp = PANASlifenegpartner)
+)
+```
+
+Run the model:
+```{r, warning = F}
+aim3_psych_cov <- brm(m1_actor_cov + m1_partner_cov + m2_actor_cov + m2_partner_cov + y_mod_psych_cov + set_rescor(rescor = F),
+                  prior = psych_prior_cov,
+                  data = data,
+                  chains = 4, iter = 3500, warmup = 1000, cores = 4, 
+                  seed = 1234,
+                  control = list(adapt_delta = .99),
+                  file = "fits/aim3_psych_cov",
+                  file_refit = "on_change")
+```
+
+Summarize:
+```{r}
+summary(aim3_psych_cov, prob = .89)
+```
+
+Calculate indirect effects:
+
+```{r}
+psych_cov_draws <- as_draws_df(aim3_psych_cov)
+
+psych_cov_draws <- psych_cov_draws |> 
+  mutate(a1 = b_PANASdiscnegactor_IHS_mean_actor,
+         a2 = b_PANASdiscnegpartner_IHS_mean_actor,
+         a3 = b_PANASdiscnegactor_IHS_mean_partner,
+         a4 = b_PANASdiscnegpartner_IHS_mean_partner,
+         b1 = b_CTSpsychperpHR_PANAS_disc_neg_actor,
+         b2 = b_CTSpsychperpHR_PANAS_disc_neg_partner,
+         
+         a5 = b_PANASlifenegactor_IHS_mean_actor,
+         a6 = b_PANASlifenegpartner_IHS_mean_actor,
+         a7 = b_PANASlifenegactor_IHS_mean_partner,
+         a8 = b_PANASlifenegpartner_IHS_mean_partner,
+         b3 = b_CTSpsychperpHR_PANAS_life_neg_actor,
+         b4 = b_CTSpsychperpHR_PANAS_life_neg_partner,
+         
+         c_prime1 = b_CTSpsychperpHR_IHS_mean_actor,
+         c_prime2 = b_CTSpsychperpHR_IHS_mean_partner
+         ) |> 
+  mutate(a1b1 = a1 * b1,
+         a2b2 = a2 * b2,
+         a3b1 = a3 * b1,
+         a4b2 = a4 * b2,
+         
+         a5b3 = a5 * b3,
+         a6b4 = a6 * b4,
+         a7b3 = a7 * b3,
+         a8b4 = a8 * b4)
+```
+
+Summarize indirect effect output:
+```{r, warning = F}
+psych_cov_draws |> 
+  select(a1b1:a8b4) |> 
+  pivot_longer(a1b1:a8b4) |> 
+  group_by(name) |> 
+  median_qi(value, .width = .89)
+```
+
+We see here now that none of the indirect effects were reliably different from zero. This could potentially be because we included dyadic coping as a covariate, which be a mediator along the pathway from internalized stigma --> negative affect after life stressor discususions --> psychological IPV perpetration. This is because these indirect effects are no longer reliably different from zero when we include it in models. 
+
+### Psychological - severe (NEED TO EDIT)
 
 Set the priors:
 ```{r}

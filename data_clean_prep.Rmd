@@ -1,8 +1,9 @@
 ---
 title: "Data Cleaning & Preparation"
-author: "T.J. Sullivan"
 date: "`r Sys.Date()`"
-output: github_document
+output:
+  html_document:
+    keep_md: true
 editor_options: 
   chunk_output_type: inline
 ---
@@ -569,4 +570,9 @@ Finally, let's save the data in a file.
 saveRDS(data, file = "data/CCS_data_cleaned.rds")
 ```
 
+# Session info
+
+```{r}
+sessionInfo()
+```
 

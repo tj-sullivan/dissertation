@@ -1,12 +1,18 @@
-analyses_basic
-================
-T.J. Sullivan
-2025-06-03
+---
+title: "analyses_basic"
+date: "2025-06-16"
+output:
+  html_document:
+    keep_md: true
+editor_options: 
+  chunk_output_type: inline
+---
 
-This document contains all of the basic analyses to report, including
-reliability, descriptives, and correlations.
 
-Load packages we’ll need:
+
+This document contains all of the basic analyses to report, including reliability, descriptives, and correlations. 
+
+Load packages we'll need:
 
 ``` r
 library(tidyverse)
@@ -21,11 +27,8 @@ library(easystats)
 library(tidybayes)
 ```
 
-Load the dataframe that we’ll use for these analyses (created from
-data_clean_prep file). Note that the rest of the code in this document
-utilizes this dataframe, so this is where it can be edited to re-run
-descriptives for the full (n = 84 couples) vs maximum analytic sample (n
-= 82 couples).
+Load the dataframe that we'll use for these analyses (created from data_clean_prep file). Note that the rest of the code in this document utilizes this dataframe, so this is where it can be edited to re-run descriptives for the full (n = 84 couples) vs maximum analytic sample (n = 82 couples). 
+
 
 ``` r
 data <- readRDS("data/CCS_data_cleaned.rds")
@@ -41,7 +44,7 @@ Histogram:
 data %>% ggplot(aes(x = IHS_mean)) + geom_histogram(binwidth = .10)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-3-1.png)<!-- -->
 
 Frequencies:
 
@@ -49,30 +52,33 @@ Frequencies:
 data %>% frq(IHS_mean)
 ```
 
-    ## IHS_mean <numeric> 
-    ## # total N=168 valid N=168 mean=1.31 sd=0.45
-    ## 
-    ## Value |  N | Raw % | Valid % | Cum. %
-    ## -------------------------------------
-    ##  1.00 | 65 | 38.69 |   38.69 |  38.69
-    ##  1.11 | 25 | 14.88 |   14.88 |  53.57
-    ##  1.22 | 20 | 11.90 |   11.90 |  65.48
-    ##  1.33 | 16 |  9.52 |    9.52 |  75.00
-    ##  1.44 | 10 |  5.95 |    5.95 |  80.95
-    ##  1.56 |  5 |  2.98 |    2.98 |  83.93
-    ##  1.67 |  4 |  2.38 |    2.38 |  86.31
-    ##  1.78 |  3 |  1.79 |    1.79 |  88.10
-    ##  1.89 |  2 |  1.19 |    1.19 |  89.29
-    ##  2.00 |  4 |  2.38 |    2.38 |  91.67
-    ##  2.11 |  1 |  0.60 |    0.60 |  92.26
-    ##  2.22 |  4 |  2.38 |    2.38 |  94.64
-    ##  2.44 |  3 |  1.79 |    1.79 |  96.43
-    ##  2.56 |  1 |  0.60 |    0.60 |  97.02
-    ##  2.67 |  2 |  1.19 |    1.19 |  98.21
-    ##  2.78 |  1 |  0.60 |    0.60 |  98.81
-    ##  3.00 |  1 |  0.60 |    0.60 |  99.40
-    ##  3.33 |  1 |  0.60 |    0.60 | 100.00
-    ##  <NA> |  0 |  0.00 |    <NA> |   <NA>
+```
+## IHS_mean <numeric> 
+## # total N=168 valid N=168 mean=1.31 sd=0.45
+## 
+## Value |  N | Raw % | Valid % | Cum. %
+## -------------------------------------
+##  1.00 | 65 | 38.69 |   38.69 |  38.69
+##  1.11 | 25 | 14.88 |   14.88 |  53.57
+##  1.22 | 20 | 11.90 |   11.90 |  65.48
+##  1.33 | 16 |  9.52 |    9.52 |  75.00
+##  1.44 | 10 |  5.95 |    5.95 |  80.95
+##  1.56 |  5 |  2.98 |    2.98 |  83.93
+##  1.67 |  4 |  2.38 |    2.38 |  86.31
+##  1.78 |  3 |  1.79 |    1.79 |  88.10
+##  1.89 |  2 |  1.19 |    1.19 |  89.29
+##  2.00 |  4 |  2.38 |    2.38 |  91.67
+##  2.11 |  1 |  0.60 |    0.60 |  92.26
+##  2.22 |  4 |  2.38 |    2.38 |  94.64
+##  2.44 |  3 |  1.79 |    1.79 |  96.43
+##  2.56 |  1 |  0.60 |    0.60 |  97.02
+##  2.67 |  2 |  1.19 |    1.19 |  98.21
+##  2.78 |  1 |  0.60 |    0.60 |  98.81
+##  3.00 |  1 |  0.60 |    0.60 |  99.40
+##  3.33 |  1 |  0.60 |    0.60 | 100.00
+##  <NA> |  0 |  0.00 |    <NA> |   <NA>
+```
+
 
 ## CTS2
 
@@ -82,47 +88,44 @@ Physical scatterplot:
 data %>% ggplot(aes(x = CTS_phys_perp_HR)) + geom_histogram(binwidth = 1)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-5-1.png)<!-- -->
 
-We see here that this looks pretty insane when plotted at the individual
-count level. This is because of a few outliers:
+We see here that this looks pretty insane when plotted at the individual count level. This is because of a few outliers:
 
 ``` r
 data %>% frq(CTS_phys_perp_HR)
 ```
 
-    ## CTS_phys_perp_HR <numeric> 
-    ## # total N=168 valid N=164 mean=2.31 sd=17.49
-    ## 
-    ## Value |   N | Raw % | Valid % | Cum. %
-    ## --------------------------------------
-    ##     0 | 139 | 82.74 |   84.76 |  84.76
-    ##     1 |  11 |  6.55 |    6.71 |  91.46
-    ##     2 |   3 |  1.79 |    1.83 |  93.29
-    ##     3 |   3 |  1.79 |    1.83 |  95.12
-    ##     5 |   1 |  0.60 |    0.61 |  95.73
-    ##    10 |   2 |  1.19 |    1.22 |  96.95
-    ##    11 |   1 |  0.60 |    0.61 |  97.56
-    ##    15 |   1 |  0.60 |    0.61 |  98.17
-    ##    25 |   1 |  0.60 |    0.61 |  98.78
-    ##    64 |   1 |  0.60 |    0.61 |  99.39
-    ##   213 |   1 |  0.60 |    0.61 | 100.00
-    ##  <NA> |   4 |  2.38 |    <NA> |   <NA>
+```
+## CTS_phys_perp_HR <numeric> 
+## # total N=168 valid N=164 mean=2.31 sd=17.49
+## 
+## Value |   N | Raw % | Valid % | Cum. %
+## --------------------------------------
+##     0 | 139 | 82.74 |   84.76 |  84.76
+##     1 |  11 |  6.55 |    6.71 |  91.46
+##     2 |   3 |  1.79 |    1.83 |  93.29
+##     3 |   3 |  1.79 |    1.83 |  95.12
+##     5 |   1 |  0.60 |    0.61 |  95.73
+##    10 |   2 |  1.19 |    1.22 |  96.95
+##    11 |   1 |  0.60 |    0.61 |  97.56
+##    15 |   1 |  0.60 |    0.61 |  98.17
+##    25 |   1 |  0.60 |    0.61 |  98.78
+##    64 |   1 |  0.60 |    0.61 |  99.39
+##   213 |   1 |  0.60 |    0.61 | 100.00
+##  <NA> |   4 |  2.38 |    <NA> |   <NA>
+```
 
-Let’s see what happens when we remove that outlier:
+
+Let's see what happens when we remove that outlier: 
 
 ``` r
 data %>% filter(CTS_phys_perp_HR != 213) %>% ggplot(aes(x = CTS_phys_perp_HR)) + geom_histogram(binwidth = 1)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-7-1.png)<!-- -->
 
-That still looks pretty skewed, but basically this is because there are
-large jumps in count proportions for physical IPV in this sample. It’s
-worth looking into how analyses hold for physical IPV when excluded the
-couple with 213 acts of violence; however, as McElreath commonly notes,
-outliers are sometimes truly data and we want to preserve them in
-analyses because they could meaningfully inform estimates.
+That still looks pretty skewed, but basically this is because there are large jumps in count proportions for physical IPV in this sample. It's worth looking into how analyses hold for physical IPV when excluded the couple with 213 acts of violence; however, as McElreath commonly notes, outliers are sometimes truly data and we want to preserve them in analyses because they could meaningfully inform estimates. 
 
 Psychological histogram (overall):
 
@@ -130,79 +133,81 @@ Psychological histogram (overall):
 data %>% ggplot(aes(x = CTS_psych_perp_HR)) + geom_histogram(binwidth = 1)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-8-1.png)<!-- -->
 
-Psychological frequency (overall):
+Psychological frequency (overall): 
 
 ``` r
 data %>% frq(CTS_psych_perp_HR)
 ```
 
-    ## CTS_psych_perp_HR <numeric> 
-    ## # total N=168 valid N=164 mean=21.74 sd=27.63
-    ## 
-    ## Value |  N | Raw % | Valid % | Cum. %
-    ## -------------------------------------
-    ##     0 | 14 |  8.33 |    8.54 |   8.54
-    ##     1 |  9 |  5.36 |    5.49 |  14.02
-    ##     2 | 22 | 13.10 |   13.41 |  27.44
-    ##     3 |  5 |  2.98 |    3.05 |  30.49
-    ##     4 |  9 |  5.36 |    5.49 |  35.98
-    ##     5 |  5 |  2.98 |    3.05 |  39.02
-    ##     6 |  4 |  2.38 |    2.44 |  41.46
-    ##     7 |  2 |  1.19 |    1.22 |  42.68
-    ##     8 |  7 |  4.17 |    4.27 |  46.95
-    ##     9 |  2 |  1.19 |    1.22 |  48.17
-    ##    10 |  5 |  2.98 |    3.05 |  51.22
-    ##    11 |  6 |  3.57 |    3.66 |  54.88
-    ##    12 |  4 |  2.38 |    2.44 |  57.32
-    ##    13 |  2 |  1.19 |    1.22 |  58.54
-    ##    14 |  2 |  1.19 |    1.22 |  59.76
-    ##    16 |  1 |  0.60 |    0.61 |  60.37
-    ##    18 |  1 |  0.60 |    0.61 |  60.98
-    ##    19 |  1 |  0.60 |    0.61 |  61.59
-    ##    20 |  3 |  1.79 |    1.83 |  63.41
-    ##    21 |  2 |  1.19 |    1.22 |  64.63
-    ##    22 |  3 |  1.79 |    1.83 |  66.46
-    ##    24 |  2 |  1.19 |    1.22 |  67.68
-    ##    25 |  1 |  0.60 |    0.61 |  68.29
-    ##    26 |  1 |  0.60 |    0.61 |  68.90
-    ##    27 |  2 |  1.19 |    1.22 |  70.12
-    ##    28 |  3 |  1.79 |    1.83 |  71.95
-    ##    29 |  4 |  2.38 |    2.44 |  74.39
-    ##    31 |  1 |  0.60 |    0.61 |  75.00
-    ##    32 |  1 |  0.60 |    0.61 |  75.61
-    ##    33 |  2 |  1.19 |    1.22 |  76.83
-    ##    35 |  2 |  1.19 |    1.22 |  78.05
-    ##    37 |  1 |  0.60 |    0.61 |  78.66
-    ##    38 |  2 |  1.19 |    1.22 |  79.88
-    ##    40 |  3 |  1.79 |    1.83 |  81.71
-    ##    42 |  4 |  2.38 |    2.44 |  84.15
-    ##    45 |  1 |  0.60 |    0.61 |  84.76
-    ##    48 |  1 |  0.60 |    0.61 |  85.37
-    ##    49 |  1 |  0.60 |    0.61 |  85.98
-    ##    51 |  1 |  0.60 |    0.61 |  86.59
-    ##    53 |  1 |  0.60 |    0.61 |  87.20
-    ##    54 |  1 |  0.60 |    0.61 |  87.80
-    ##    56 |  1 |  0.60 |    0.61 |  88.41
-    ##    57 |  2 |  1.19 |    1.22 |  89.63
-    ##    58 |  1 |  0.60 |    0.61 |  90.24
-    ##    59 |  1 |  0.60 |    0.61 |  90.85
-    ##    64 |  1 |  0.60 |    0.61 |  91.46
-    ##    65 |  1 |  0.60 |    0.61 |  92.07
-    ##    66 |  2 |  1.19 |    1.22 |  93.29
-    ##    69 |  1 |  0.60 |    0.61 |  93.90
-    ##    75 |  1 |  0.60 |    0.61 |  94.51
-    ##    80 |  1 |  0.60 |    0.61 |  95.12
-    ##    81 |  1 |  0.60 |    0.61 |  95.73
-    ##    88 |  1 |  0.60 |    0.61 |  96.34
-    ##    90 |  1 |  0.60 |    0.61 |  96.95
-    ##   100 |  1 |  0.60 |    0.61 |  97.56
-    ##   113 |  1 |  0.60 |    0.61 |  98.17
-    ##   118 |  1 |  0.60 |    0.61 |  98.78
-    ##   121 |  1 |  0.60 |    0.61 |  99.39
-    ##   149 |  1 |  0.60 |    0.61 | 100.00
-    ##  <NA> |  4 |  2.38 |    <NA> |   <NA>
+```
+## CTS_psych_perp_HR <numeric> 
+## # total N=168 valid N=164 mean=21.74 sd=27.63
+## 
+## Value |  N | Raw % | Valid % | Cum. %
+## -------------------------------------
+##     0 | 14 |  8.33 |    8.54 |   8.54
+##     1 |  9 |  5.36 |    5.49 |  14.02
+##     2 | 22 | 13.10 |   13.41 |  27.44
+##     3 |  5 |  2.98 |    3.05 |  30.49
+##     4 |  9 |  5.36 |    5.49 |  35.98
+##     5 |  5 |  2.98 |    3.05 |  39.02
+##     6 |  4 |  2.38 |    2.44 |  41.46
+##     7 |  2 |  1.19 |    1.22 |  42.68
+##     8 |  7 |  4.17 |    4.27 |  46.95
+##     9 |  2 |  1.19 |    1.22 |  48.17
+##    10 |  5 |  2.98 |    3.05 |  51.22
+##    11 |  6 |  3.57 |    3.66 |  54.88
+##    12 |  4 |  2.38 |    2.44 |  57.32
+##    13 |  2 |  1.19 |    1.22 |  58.54
+##    14 |  2 |  1.19 |    1.22 |  59.76
+##    16 |  1 |  0.60 |    0.61 |  60.37
+##    18 |  1 |  0.60 |    0.61 |  60.98
+##    19 |  1 |  0.60 |    0.61 |  61.59
+##    20 |  3 |  1.79 |    1.83 |  63.41
+##    21 |  2 |  1.19 |    1.22 |  64.63
+##    22 |  3 |  1.79 |    1.83 |  66.46
+##    24 |  2 |  1.19 |    1.22 |  67.68
+##    25 |  1 |  0.60 |    0.61 |  68.29
+##    26 |  1 |  0.60 |    0.61 |  68.90
+##    27 |  2 |  1.19 |    1.22 |  70.12
+##    28 |  3 |  1.79 |    1.83 |  71.95
+##    29 |  4 |  2.38 |    2.44 |  74.39
+##    31 |  1 |  0.60 |    0.61 |  75.00
+##    32 |  1 |  0.60 |    0.61 |  75.61
+##    33 |  2 |  1.19 |    1.22 |  76.83
+##    35 |  2 |  1.19 |    1.22 |  78.05
+##    37 |  1 |  0.60 |    0.61 |  78.66
+##    38 |  2 |  1.19 |    1.22 |  79.88
+##    40 |  3 |  1.79 |    1.83 |  81.71
+##    42 |  4 |  2.38 |    2.44 |  84.15
+##    45 |  1 |  0.60 |    0.61 |  84.76
+##    48 |  1 |  0.60 |    0.61 |  85.37
+##    49 |  1 |  0.60 |    0.61 |  85.98
+##    51 |  1 |  0.60 |    0.61 |  86.59
+##    53 |  1 |  0.60 |    0.61 |  87.20
+##    54 |  1 |  0.60 |    0.61 |  87.80
+##    56 |  1 |  0.60 |    0.61 |  88.41
+##    57 |  2 |  1.19 |    1.22 |  89.63
+##    58 |  1 |  0.60 |    0.61 |  90.24
+##    59 |  1 |  0.60 |    0.61 |  90.85
+##    64 |  1 |  0.60 |    0.61 |  91.46
+##    65 |  1 |  0.60 |    0.61 |  92.07
+##    66 |  2 |  1.19 |    1.22 |  93.29
+##    69 |  1 |  0.60 |    0.61 |  93.90
+##    75 |  1 |  0.60 |    0.61 |  94.51
+##    80 |  1 |  0.60 |    0.61 |  95.12
+##    81 |  1 |  0.60 |    0.61 |  95.73
+##    88 |  1 |  0.60 |    0.61 |  96.34
+##    90 |  1 |  0.60 |    0.61 |  96.95
+##   100 |  1 |  0.60 |    0.61 |  97.56
+##   113 |  1 |  0.60 |    0.61 |  98.17
+##   118 |  1 |  0.60 |    0.61 |  98.78
+##   121 |  1 |  0.60 |    0.61 |  99.39
+##   149 |  1 |  0.60 |    0.61 | 100.00
+##  <NA> |  4 |  2.38 |    <NA> |   <NA>
+```
 
 Psychological histogram (minor):
 
@@ -210,67 +215,69 @@ Psychological histogram (minor):
 data %>% ggplot(aes(x = CTS_psych_perp_HR_minor)) + geom_histogram(binwidth = 1)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-10-1.png)<!-- -->
 
-Psychological frequency (minor):
+Psychological frequency (minor): 
 
 ``` r
 data %>% frq(CTS_psych_perp_HR_minor)
 ```
 
-    ## CTS_psych_perp_HR_minor <numeric> 
-    ## # total N=168 valid N=168 mean=17.45 sd=20.51
-    ## 
-    ## Value |  N | Raw % | Valid % | Cum. %
-    ## -------------------------------------
-    ##     0 | 17 | 10.12 |   10.12 |  10.12
-    ##     1 | 10 |  5.95 |    5.95 |  16.07
-    ##     2 | 20 | 11.90 |   11.90 |  27.98
-    ##     3 |  7 |  4.17 |    4.17 |  32.14
-    ##     4 |  9 |  5.36 |    5.36 |  37.50
-    ##     5 |  6 |  3.57 |    3.57 |  41.07
-    ##     6 |  9 |  5.36 |    5.36 |  46.43
-    ##     7 |  4 |  2.38 |    2.38 |  48.81
-    ##     8 |  4 |  2.38 |    2.38 |  51.19
-    ##     9 |  9 |  5.36 |    5.36 |  56.55
-    ##    10 |  4 |  2.38 |    2.38 |  58.93
-    ##    11 |  2 |  1.19 |    1.19 |  60.12
-    ##    12 |  4 |  2.38 |    2.38 |  62.50
-    ##    13 |  1 |  0.60 |    0.60 |  63.10
-    ##    14 |  4 |  2.38 |    2.38 |  65.48
-    ##    18 |  1 |  0.60 |    0.60 |  66.07
-    ##    20 |  3 |  1.79 |    1.79 |  67.86
-    ##    21 |  1 |  0.60 |    0.60 |  68.45
-    ##    22 |  2 |  1.19 |    1.19 |  69.64
-    ##    24 |  2 |  1.19 |    1.19 |  70.83
-    ##    25 |  1 |  0.60 |    0.60 |  71.43
-    ##    27 |  3 |  1.79 |    1.79 |  73.21
-    ##    28 |  3 |  1.79 |    1.79 |  75.00
-    ##    29 |  2 |  1.19 |    1.19 |  76.19
-    ##    31 |  1 |  0.60 |    0.60 |  76.79
-    ##    32 |  1 |  0.60 |    0.60 |  77.38
-    ##    33 |  3 |  1.79 |    1.79 |  79.17
-    ##    34 |  2 |  1.19 |    1.19 |  80.36
-    ##    35 |  3 |  1.79 |    1.79 |  82.14
-    ##    37 |  2 |  1.19 |    1.19 |  83.33
-    ##    40 |  2 |  1.19 |    1.19 |  84.52
-    ##    41 |  2 |  1.19 |    1.19 |  85.71
-    ##    45 |  1 |  0.60 |    0.60 |  86.31
-    ##    47 |  1 |  0.60 |    0.60 |  86.90
-    ##    49 |  1 |  0.60 |    0.60 |  87.50
-    ##    50 |  1 |  0.60 |    0.60 |  88.10
-    ##    51 |  1 |  0.60 |    0.60 |  88.69
-    ##    52 |  3 |  1.79 |    1.79 |  90.48
-    ##    53 |  2 |  1.19 |    1.19 |  91.67
-    ##    54 |  2 |  1.19 |    1.19 |  92.86
-    ##    55 |  1 |  0.60 |    0.60 |  93.45
-    ##    56 |  2 |  1.19 |    1.19 |  94.64
-    ##    60 |  3 |  1.79 |    1.79 |  96.43
-    ##    66 |  2 |  1.19 |    1.19 |  97.62
-    ##    69 |  1 |  0.60 |    0.60 |  98.21
-    ##    80 |  2 |  1.19 |    1.19 |  99.40
-    ##    90 |  1 |  0.60 |    0.60 | 100.00
-    ##  <NA> |  0 |  0.00 |    <NA> |   <NA>
+```
+## CTS_psych_perp_HR_minor <numeric> 
+## # total N=168 valid N=168 mean=17.45 sd=20.51
+## 
+## Value |  N | Raw % | Valid % | Cum. %
+## -------------------------------------
+##     0 | 17 | 10.12 |   10.12 |  10.12
+##     1 | 10 |  5.95 |    5.95 |  16.07
+##     2 | 20 | 11.90 |   11.90 |  27.98
+##     3 |  7 |  4.17 |    4.17 |  32.14
+##     4 |  9 |  5.36 |    5.36 |  37.50
+##     5 |  6 |  3.57 |    3.57 |  41.07
+##     6 |  9 |  5.36 |    5.36 |  46.43
+##     7 |  4 |  2.38 |    2.38 |  48.81
+##     8 |  4 |  2.38 |    2.38 |  51.19
+##     9 |  9 |  5.36 |    5.36 |  56.55
+##    10 |  4 |  2.38 |    2.38 |  58.93
+##    11 |  2 |  1.19 |    1.19 |  60.12
+##    12 |  4 |  2.38 |    2.38 |  62.50
+##    13 |  1 |  0.60 |    0.60 |  63.10
+##    14 |  4 |  2.38 |    2.38 |  65.48
+##    18 |  1 |  0.60 |    0.60 |  66.07
+##    20 |  3 |  1.79 |    1.79 |  67.86
+##    21 |  1 |  0.60 |    0.60 |  68.45
+##    22 |  2 |  1.19 |    1.19 |  69.64
+##    24 |  2 |  1.19 |    1.19 |  70.83
+##    25 |  1 |  0.60 |    0.60 |  71.43
+##    27 |  3 |  1.79 |    1.79 |  73.21
+##    28 |  3 |  1.79 |    1.79 |  75.00
+##    29 |  2 |  1.19 |    1.19 |  76.19
+##    31 |  1 |  0.60 |    0.60 |  76.79
+##    32 |  1 |  0.60 |    0.60 |  77.38
+##    33 |  3 |  1.79 |    1.79 |  79.17
+##    34 |  2 |  1.19 |    1.19 |  80.36
+##    35 |  3 |  1.79 |    1.79 |  82.14
+##    37 |  2 |  1.19 |    1.19 |  83.33
+##    40 |  2 |  1.19 |    1.19 |  84.52
+##    41 |  2 |  1.19 |    1.19 |  85.71
+##    45 |  1 |  0.60 |    0.60 |  86.31
+##    47 |  1 |  0.60 |    0.60 |  86.90
+##    49 |  1 |  0.60 |    0.60 |  87.50
+##    50 |  1 |  0.60 |    0.60 |  88.10
+##    51 |  1 |  0.60 |    0.60 |  88.69
+##    52 |  3 |  1.79 |    1.79 |  90.48
+##    53 |  2 |  1.19 |    1.19 |  91.67
+##    54 |  2 |  1.19 |    1.19 |  92.86
+##    55 |  1 |  0.60 |    0.60 |  93.45
+##    56 |  2 |  1.19 |    1.19 |  94.64
+##    60 |  3 |  1.79 |    1.79 |  96.43
+##    66 |  2 |  1.19 |    1.19 |  97.62
+##    69 |  1 |  0.60 |    0.60 |  98.21
+##    80 |  2 |  1.19 |    1.19 |  99.40
+##    90 |  1 |  0.60 |    0.60 | 100.00
+##  <NA> |  0 |  0.00 |    <NA> |   <NA>
+```
 
 Psychological histogram (severe):
 
@@ -278,42 +285,44 @@ Psychological histogram (severe):
 data %>% ggplot(aes(x = CTS_psych_perp_HR_severe)) + geom_histogram(binwidth = 1)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-12-1.png)<!-- -->
 
-Psychological frequency (severe):
+Psychological frequency (severe): 
 
 ``` r
 data %>% frq(CTS_psych_perp_HR_severe)
 ```
 
-    ## CTS_psych_perp_HR_severe <numeric> 
-    ## # total N=168 valid N=164 mean=4.03 sd=9.67
-    ## 
-    ## Value |  N | Raw % | Valid % | Cum. %
-    ## -------------------------------------
-    ##     0 | 90 | 53.57 |   54.88 |  54.88
-    ##     1 | 13 |  7.74 |    7.93 |  62.80
-    ##     2 | 11 |  6.55 |    6.71 |  69.51
-    ##     3 |  3 |  1.79 |    1.83 |  71.34
-    ##     4 | 15 |  8.93 |    9.15 |  80.49
-    ##     5 |  4 |  2.38 |    2.44 |  82.93
-    ##     6 |  4 |  2.38 |    2.44 |  85.37
-    ##     7 |  1 |  0.60 |    0.61 |  85.98
-    ##     8 |  6 |  3.57 |    3.66 |  89.63
-    ##    11 |  2 |  1.19 |    1.22 |  90.85
-    ##    15 |  1 |  0.60 |    0.61 |  91.46
-    ##    16 |  1 |  0.60 |    0.61 |  92.07
-    ##    17 |  2 |  1.19 |    1.22 |  93.29
-    ##    19 |  2 |  1.19 |    1.22 |  94.51
-    ##    25 |  1 |  0.60 |    0.61 |  95.12
-    ##    26 |  2 |  1.19 |    1.22 |  96.34
-    ##    31 |  1 |  0.60 |    0.61 |  96.95
-    ##    33 |  1 |  0.60 |    0.61 |  97.56
-    ##    34 |  1 |  0.60 |    0.61 |  98.17
-    ##    37 |  1 |  0.60 |    0.61 |  98.78
-    ##    38 |  1 |  0.60 |    0.61 |  99.39
-    ##    83 |  1 |  0.60 |    0.61 | 100.00
-    ##  <NA> |  4 |  2.38 |    <NA> |   <NA>
+```
+## CTS_psych_perp_HR_severe <numeric> 
+## # total N=168 valid N=164 mean=4.03 sd=9.67
+## 
+## Value |  N | Raw % | Valid % | Cum. %
+## -------------------------------------
+##     0 | 90 | 53.57 |   54.88 |  54.88
+##     1 | 13 |  7.74 |    7.93 |  62.80
+##     2 | 11 |  6.55 |    6.71 |  69.51
+##     3 |  3 |  1.79 |    1.83 |  71.34
+##     4 | 15 |  8.93 |    9.15 |  80.49
+##     5 |  4 |  2.38 |    2.44 |  82.93
+##     6 |  4 |  2.38 |    2.44 |  85.37
+##     7 |  1 |  0.60 |    0.61 |  85.98
+##     8 |  6 |  3.57 |    3.66 |  89.63
+##    11 |  2 |  1.19 |    1.22 |  90.85
+##    15 |  1 |  0.60 |    0.61 |  91.46
+##    16 |  1 |  0.60 |    0.61 |  92.07
+##    17 |  2 |  1.19 |    1.22 |  93.29
+##    19 |  2 |  1.19 |    1.22 |  94.51
+##    25 |  1 |  0.60 |    0.61 |  95.12
+##    26 |  2 |  1.19 |    1.22 |  96.34
+##    31 |  1 |  0.60 |    0.61 |  96.95
+##    33 |  1 |  0.60 |    0.61 |  97.56
+##    34 |  1 |  0.60 |    0.61 |  98.17
+##    37 |  1 |  0.60 |    0.61 |  98.78
+##    38 |  1 |  0.60 |    0.61 |  99.39
+##    83 |  1 |  0.60 |    0.61 | 100.00
+##  <NA> |  4 |  2.38 |    <NA> |   <NA>
+```
 
 SGM-specific histogram:
 
@@ -321,7 +330,7 @@ SGM-specific histogram:
 data %>% ggplot(aes(x = CTS_sgm_perp_HR)) + geom_histogram(binwidth = 1)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-14-1.png)<!-- -->
 
 SGM-specific frequencies:
 
@@ -329,20 +338,22 @@ SGM-specific frequencies:
 data %>% frq(CTS_sgm_perp_HR)
 ```
 
-    ## CTS_sgm_perp_HR <numeric> 
-    ## # total N=168 valid N=164 mean=0.63 sd=2.52
-    ## 
-    ## Value |   N | Raw % | Valid % | Cum. %
-    ## --------------------------------------
-    ##     0 | 142 | 84.52 |   86.59 |  86.59
-    ##     1 |   4 |  2.38 |    2.44 |  89.02
-    ##     2 |   8 |  4.76 |    4.88 |  93.90
-    ##     4 |   4 |  2.38 |    2.44 |  96.34
-    ##     6 |   1 |  0.60 |    0.61 |  96.95
-    ##     8 |   3 |  1.79 |    1.83 |  98.78
-    ##    12 |   1 |  0.60 |    0.61 |  99.39
-    ##    25 |   1 |  0.60 |    0.61 | 100.00
-    ##  <NA> |   4 |  2.38 |    <NA> |   <NA>
+```
+## CTS_sgm_perp_HR <numeric> 
+## # total N=168 valid N=164 mean=0.63 sd=2.52
+## 
+## Value |   N | Raw % | Valid % | Cum. %
+## --------------------------------------
+##     0 | 142 | 84.52 |   86.59 |  86.59
+##     1 |   4 |  2.38 |    2.44 |  89.02
+##     2 |   8 |  4.76 |    4.88 |  93.90
+##     4 |   4 |  2.38 |    2.44 |  96.34
+##     6 |   1 |  0.60 |    0.61 |  96.95
+##     8 |   3 |  1.79 |    1.83 |  98.78
+##    12 |   1 |  0.60 |    0.61 |  99.39
+##    25 |   1 |  0.60 |    0.61 | 100.00
+##  <NA> |   4 |  2.38 |    <NA> |   <NA>
+```
 
 ## PANAS
 
@@ -352,7 +363,7 @@ Histogram for life stressor discussion:
 data %>% ggplot(aes(x = PANAS_life_neg)) + geom_histogram(binwidth = 1)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-16-1.png)<!-- -->
 
 Frequencies for life stressor discussion:
 
@@ -360,34 +371,36 @@ Frequencies for life stressor discussion:
 data %>% frq(PANAS_life_neg)
 ```
 
-    ## PANAS_life_neg <numeric> 
-    ## # total N=168 valid N=162 mean=14.27 sd=5.82
-    ## 
-    ## Value |  N | Raw % | Valid % | Cum. %
-    ## -------------------------------------
-    ##    10 | 40 | 23.81 |   24.69 |  24.69
-    ##    11 | 23 | 13.69 |   14.20 |  38.89
-    ##    12 | 21 | 12.50 |   12.96 |  51.85
-    ##    13 | 18 | 10.71 |   11.11 |  62.96
-    ##    14 | 11 |  6.55 |    6.79 |  69.75
-    ##    15 | 12 |  7.14 |    7.41 |  77.16
-    ##    16 |  4 |  2.38 |    2.47 |  79.63
-    ##    17 |  3 |  1.79 |    1.85 |  81.48
-    ##    18 |  4 |  2.38 |    2.47 |  83.95
-    ##    19 |  7 |  4.17 |    4.32 |  88.27
-    ##    20 |  2 |  1.19 |    1.23 |  89.51
-    ##    21 |  2 |  1.19 |    1.23 |  90.74
-    ##    22 |  2 |  1.19 |    1.23 |  91.98
-    ##    23 |  2 |  1.19 |    1.23 |  93.21
-    ##    25 |  2 |  1.19 |    1.23 |  94.44
-    ##    26 |  1 |  0.60 |    0.62 |  95.06
-    ##    29 |  3 |  1.79 |    1.85 |  96.91
-    ##    30 |  1 |  0.60 |    0.62 |  97.53
-    ##    32 |  1 |  0.60 |    0.62 |  98.15
-    ##    37 |  1 |  0.60 |    0.62 |  98.77
-    ##    38 |  1 |  0.60 |    0.62 |  99.38
-    ##    46 |  1 |  0.60 |    0.62 | 100.00
-    ##  <NA> |  6 |  3.57 |    <NA> |   <NA>
+```
+## PANAS_life_neg <numeric> 
+## # total N=168 valid N=162 mean=14.27 sd=5.82
+## 
+## Value |  N | Raw % | Valid % | Cum. %
+## -------------------------------------
+##    10 | 40 | 23.81 |   24.69 |  24.69
+##    11 | 23 | 13.69 |   14.20 |  38.89
+##    12 | 21 | 12.50 |   12.96 |  51.85
+##    13 | 18 | 10.71 |   11.11 |  62.96
+##    14 | 11 |  6.55 |    6.79 |  69.75
+##    15 | 12 |  7.14 |    7.41 |  77.16
+##    16 |  4 |  2.38 |    2.47 |  79.63
+##    17 |  3 |  1.79 |    1.85 |  81.48
+##    18 |  4 |  2.38 |    2.47 |  83.95
+##    19 |  7 |  4.17 |    4.32 |  88.27
+##    20 |  2 |  1.19 |    1.23 |  89.51
+##    21 |  2 |  1.19 |    1.23 |  90.74
+##    22 |  2 |  1.19 |    1.23 |  91.98
+##    23 |  2 |  1.19 |    1.23 |  93.21
+##    25 |  2 |  1.19 |    1.23 |  94.44
+##    26 |  1 |  0.60 |    0.62 |  95.06
+##    29 |  3 |  1.79 |    1.85 |  96.91
+##    30 |  1 |  0.60 |    0.62 |  97.53
+##    32 |  1 |  0.60 |    0.62 |  98.15
+##    37 |  1 |  0.60 |    0.62 |  98.77
+##    38 |  1 |  0.60 |    0.62 |  99.38
+##    46 |  1 |  0.60 |    0.62 | 100.00
+##  <NA> |  6 |  3.57 |    <NA> |   <NA>
+```
 
 Histogram for discrimination stressor discussion:
 
@@ -395,7 +408,7 @@ Histogram for discrimination stressor discussion:
 data %>% ggplot(aes(x = PANAS_disc_neg)) + geom_histogram(binwidth = 1)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-18-1.png)<!-- -->
 
 Frequencies for discrimination discussion:
 
@@ -403,54 +416,57 @@ Frequencies for discrimination discussion:
 data %>% frq(PANAS_disc_neg)
 ```
 
-    ## PANAS_disc_neg <numeric> 
-    ## # total N=168 valid N=162 mean=14.70 sd=5.15
-    ## 
-    ## Value |  N | Raw % | Valid % | Cum. %
-    ## -------------------------------------
-    ##    10 | 33 | 19.64 |   20.37 |  20.37
-    ##    11 | 18 | 10.71 |   11.11 |  31.48
-    ##    12 | 17 | 10.12 |   10.49 |  41.98
-    ##    13 | 21 | 12.50 |   12.96 |  54.94
-    ##    14 | 14 |  8.33 |    8.64 |  63.58
-    ##    15 | 11 |  6.55 |    6.79 |  70.37
-    ##    16 |  6 |  3.57 |    3.70 |  74.07
-    ##    17 |  5 |  2.98 |    3.09 |  77.16
-    ##    18 |  7 |  4.17 |    4.32 |  81.48
-    ##    19 |  6 |  3.57 |    3.70 |  85.19
-    ##    20 |  5 |  2.98 |    3.09 |  88.27
-    ##    21 |  1 |  0.60 |    0.62 |  88.89
-    ##    22 |  2 |  1.19 |    1.23 |  90.12
-    ##    23 |  3 |  1.79 |    1.85 |  91.98
-    ##    24 |  2 |  1.19 |    1.23 |  93.21
-    ##    25 |  2 |  1.19 |    1.23 |  94.44
-    ##    26 |  3 |  1.79 |    1.85 |  96.30
-    ##    27 |  1 |  0.60 |    0.62 |  96.91
-    ##    29 |  2 |  1.19 |    1.23 |  98.15
-    ##    31 |  1 |  0.60 |    0.62 |  98.77
-    ##    33 |  1 |  0.60 |    0.62 |  99.38
-    ##    36 |  1 |  0.60 |    0.62 | 100.00
-    ##  <NA> |  6 |  3.57 |    <NA> |   <NA>
+```
+## PANAS_disc_neg <numeric> 
+## # total N=168 valid N=162 mean=14.70 sd=5.15
+## 
+## Value |  N | Raw % | Valid % | Cum. %
+## -------------------------------------
+##    10 | 33 | 19.64 |   20.37 |  20.37
+##    11 | 18 | 10.71 |   11.11 |  31.48
+##    12 | 17 | 10.12 |   10.49 |  41.98
+##    13 | 21 | 12.50 |   12.96 |  54.94
+##    14 | 14 |  8.33 |    8.64 |  63.58
+##    15 | 11 |  6.55 |    6.79 |  70.37
+##    16 |  6 |  3.57 |    3.70 |  74.07
+##    17 |  5 |  2.98 |    3.09 |  77.16
+##    18 |  7 |  4.17 |    4.32 |  81.48
+##    19 |  6 |  3.57 |    3.70 |  85.19
+##    20 |  5 |  2.98 |    3.09 |  88.27
+##    21 |  1 |  0.60 |    0.62 |  88.89
+##    22 |  2 |  1.19 |    1.23 |  90.12
+##    23 |  3 |  1.79 |    1.85 |  91.98
+##    24 |  2 |  1.19 |    1.23 |  93.21
+##    25 |  2 |  1.19 |    1.23 |  94.44
+##    26 |  3 |  1.79 |    1.85 |  96.30
+##    27 |  1 |  0.60 |    0.62 |  96.91
+##    29 |  2 |  1.19 |    1.23 |  98.15
+##    31 |  1 |  0.60 |    0.62 |  98.77
+##    33 |  1 |  0.60 |    0.62 |  99.38
+##    36 |  1 |  0.60 |    0.62 | 100.00
+##  <NA> |  6 |  3.57 |    <NA> |   <NA>
+```
 
-## Bivariate scatterplots
+
+## Bivariate scatterplots 
 
 ### IHS & CTS2 subscales
 
-Physical:
+Physical: 
 
 ``` r
 data %>% ggplot(aes(x = IHS_mean, y = CTS_phys_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-20-1.png)<!-- -->
 
-Let’s see what that plot looks like without the very large outliers:
+Let's see what that plot looks like without the very large outliers: 
 
 ``` r
 data %>% filter(CTS_phys_perp_HR != 213 & CTS_phys_perp_HR != 64) %>% ggplot(aes(x = IHS_mean, y = CTS_phys_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-21-1.png)<!-- -->
 
 Psychological (overall):
 
@@ -458,7 +474,7 @@ Psychological (overall):
 data %>% ggplot(aes(x = IHS_mean, y = CTS_psych_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-22-1.png)<!-- -->
 
 Psychological (minor):
 
@@ -466,7 +482,7 @@ Psychological (minor):
 data %>% ggplot(aes(x = IHS_mean, y = CTS_psych_perp_HR_minor)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-23-1.png)<!-- -->
 
 Psychological (severe):
 
@@ -474,7 +490,7 @@ Psychological (severe):
 data %>% ggplot(aes(x = IHS_mean, y = CTS_psych_perp_HR_severe)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-24-1.png)<!-- -->
 
 SGM-specific:
 
@@ -482,37 +498,41 @@ SGM-specific:
 data %>% ggplot(aes(x = IHS_mean, y = CTS_sgm_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-25-1.png)<!-- -->
 
 ### IHS & PANAS
+
 
 ``` r
 data %>% ggplot(aes(x = IHS_mean, y = PANAS_life_neg)) + geom_point() + geom_jitter(width = 0.075) 
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-26-1.png)<!-- -->
+
 
 ``` r
 data %>% ggplot(aes(x = IHS_mean, y = PANAS_disc_neg)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-27-1.png)<!-- -->
 
 ### PANAS & CTS2 subscales
 
 Physical:
 
+
 ``` r
 data %>% ggplot(aes(y = PANAS_life_neg, x = CTS_phys_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-28-1.png)<!-- -->
+
 
 ``` r
 data %>% ggplot(aes(y = PANAS_disc_neg, x = CTS_phys_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-29-1.png)<!-- -->
 
 Psychological (overall):
 
@@ -520,13 +540,14 @@ Psychological (overall):
 data %>% ggplot(aes(y = PANAS_life_neg, x = CTS_psych_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-30-1.png)<!-- -->
+
 
 ``` r
 data %>% ggplot(aes(y = PANAS_disc_neg, x = CTS_psych_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-31-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-31-1.png)<!-- -->
 
 Psychological (minor):
 
@@ -534,13 +555,14 @@ Psychological (minor):
 data %>% ggplot(aes(y = PANAS_life_neg, x = CTS_psych_perp_HR_minor)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-32-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-32-1.png)<!-- -->
+
 
 ``` r
 data %>% ggplot(aes(y = PANAS_disc_neg, x = CTS_psych_perp_HR_minor)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-33-1.png)<!-- -->
 
 Psychological (severe):
 
@@ -548,13 +570,15 @@ Psychological (severe):
 data %>% ggplot(aes(y = PANAS_life_neg, x = CTS_psych_perp_HR_severe)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-34-1.png)<!-- -->
+
 
 ``` r
 data %>% ggplot(aes(y = PANAS_disc_neg, x = CTS_psych_perp_HR_severe)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-35-1.png)<!-- -->
+
 
 SGM-specific:
 
@@ -562,20 +586,20 @@ SGM-specific:
 data %>% ggplot(aes(y = PANAS_life_neg, x = CTS_sgm_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-36-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-36-1.png)<!-- -->
+
 
 ``` r
 data %>% ggplot(aes(y = PANAS_disc_neg, x = CTS_sgm_perp_HR)) + geom_point() + geom_jitter(width = 0.075)
 ```
 
-![](analyses_basic_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
+![](analyses_basic_files/figure-html/unnamed-chunk-37-1.png)<!-- -->
 
 # Descriptives
 
 ## IPV prevalence
 
-Let’s get individual-level prevalence across subscales and for specific
-acts on the CTS2:
+Let's get individual-level prevalence across subscales and for specific acts on the CTS2: 
 
 ``` r
 # workflow to get percentage & n endorsed for each act of IPV 
@@ -610,22 +634,24 @@ write_csv(prev, "output/ipv_individ_prev.csv")
 prev
 ```
 
-    ## # A tibble: 30 × 2
-    ##    ColNames             perc_n   
-    ##    <chr>                <chr>    
-    ##  1 phys_ipv_prev        15.2 (25)
-    ##  2 CTS_phys_threw_perp  5.5 (9)  
-    ##  3 CTS_phys_twist_perp  3 (5)    
-    ##  4 CTS_phys_push_perp   7.9 (13) 
-    ##  5 CTS_phys_grab_perp   8.5 (14) 
-    ##  6 CTS_phys_slap_perp   7.3 (12) 
-    ##  7 CTS_phys_weapon_perp 1.2 (2)  
-    ##  8 CTS_phys_punch_perp  4.3 (7)  
-    ##  9 CTS_phys_choke_perp  2.4 (4)  
-    ## 10 CTS_phys_slam_perp   3 (5)    
-    ## # ℹ 20 more rows
+```
+## # A tibble: 30 × 2
+##    ColNames             perc_n   
+##    <chr>                <chr>    
+##  1 phys_ipv_prev        15.2 (25)
+##  2 CTS_phys_threw_perp  5.5 (9)  
+##  3 CTS_phys_twist_perp  3 (5)    
+##  4 CTS_phys_push_perp   7.9 (13) 
+##  5 CTS_phys_grab_perp   8.5 (14) 
+##  6 CTS_phys_slap_perp   7.3 (12) 
+##  7 CTS_phys_weapon_perp 1.2 (2)  
+##  8 CTS_phys_punch_perp  4.3 (7)  
+##  9 CTS_phys_choke_perp  2.4 (4)  
+## 10 CTS_phys_slam_perp   3 (5)    
+## # ℹ 20 more rows
+```
 
-Then let’s pull prevalence at the couple level.
+Then let's pull prevalence at the couple level. 
 
 ``` r
 data %>% select(CoupleID, phys_ipv_prev_couple, psych_ipv_prev_couple, psych_ipv_prev_couple_min, psych_ipv_prev_couple_sev, sgm_ipv_prev_couple) %>%
@@ -635,57 +661,60 @@ data %>% select(CoupleID, phys_ipv_prev_couple, psych_ipv_prev_couple, psych_ipv
   frq()
 ```
 
-    ## phys_ipv_prev_couple <categorical> 
-    ## # total N=84 valid N=82 mean=1.30 sd=0.68
-    ## 
-    ## Value          |  N | Raw % | Valid % | Cum. %
-    ## ----------------------------------------------
-    ## no violence    | 67 | 79.76 |   81.71 |  81.71
-    ## unidirectional |  5 |  5.95 |    6.10 |  87.80
-    ## bidirectional  | 10 | 11.90 |   12.20 | 100.00
-    ## <NA>           |  2 |  2.38 |    <NA> |   <NA>
-    ## 
-    ## psych_ipv_prev_couple <categorical> 
-    ## # total N=84 valid N=84 mean=2.83 sd=0.49
-    ## 
-    ## Value          |  N | Raw % | Valid % | Cum. %
-    ## ----------------------------------------------
-    ## no violence    |  4 |  4.76 |    4.76 |   4.76
-    ## unidirectional |  6 |  7.14 |    7.14 |  11.90
-    ## bidirectional  | 74 | 88.10 |   88.10 | 100.00
-    ## <NA>           |  0 |  0.00 |    <NA> |   <NA>
-    ## 
-    ## psych_ipv_prev_couple_min <categorical> 
-    ## # total N=84 valid N=84 mean=2.80 sd=0.51
-    ## 
-    ## Value          |  N | Raw % | Valid % | Cum. %
-    ## ----------------------------------------------
-    ## no violence    |  4 |  4.76 |    4.76 |   4.76
-    ## unidirectional |  9 | 10.71 |   10.71 |  15.48
-    ## bidirectional  | 71 | 84.52 |   84.52 | 100.00
-    ## <NA>           |  0 |  0.00 |    <NA> |   <NA>
-    ## 
-    ## psych_ipv_prev_couple_sev <categorical> 
-    ## # total N=84 valid N=83 mean=1.92 sd=0.91
-    ## 
-    ## Value          |  N | Raw % | Valid % | Cum. %
-    ## ----------------------------------------------
-    ## no violence    | 38 | 45.24 |   45.78 |  45.78
-    ## unidirectional | 14 | 16.67 |   16.87 |  62.65
-    ## bidirectional  | 31 | 36.90 |   37.35 | 100.00
-    ## <NA>           |  1 |  1.19 |    <NA> |   <NA>
-    ## 
-    ## sgm_ipv_prev_couple <categorical> 
-    ## # total N=84 valid N=83 mean=1.29 sd=0.62
-    ## 
-    ## Value          |  N | Raw % | Valid % | Cum. %
-    ## ----------------------------------------------
-    ## no violence    | 66 | 78.57 |   79.52 |  79.52
-    ## unidirectional | 10 | 11.90 |   12.05 |  91.57
-    ## bidirectional  |  7 |  8.33 |    8.43 | 100.00
-    ## <NA>           |  1 |  1.19 |    <NA> |   <NA>
+```
+## phys_ipv_prev_couple <categorical> 
+## # total N=84 valid N=82 mean=1.30 sd=0.68
+## 
+## Value          |  N | Raw % | Valid % | Cum. %
+## ----------------------------------------------
+## no violence    | 67 | 79.76 |   81.71 |  81.71
+## unidirectional |  5 |  5.95 |    6.10 |  87.80
+## bidirectional  | 10 | 11.90 |   12.20 | 100.00
+## <NA>           |  2 |  2.38 |    <NA> |   <NA>
+## 
+## psych_ipv_prev_couple <categorical> 
+## # total N=84 valid N=84 mean=2.83 sd=0.49
+## 
+## Value          |  N | Raw % | Valid % | Cum. %
+## ----------------------------------------------
+## no violence    |  4 |  4.76 |    4.76 |   4.76
+## unidirectional |  6 |  7.14 |    7.14 |  11.90
+## bidirectional  | 74 | 88.10 |   88.10 | 100.00
+## <NA>           |  0 |  0.00 |    <NA> |   <NA>
+## 
+## psych_ipv_prev_couple_min <categorical> 
+## # total N=84 valid N=84 mean=2.80 sd=0.51
+## 
+## Value          |  N | Raw % | Valid % | Cum. %
+## ----------------------------------------------
+## no violence    |  4 |  4.76 |    4.76 |   4.76
+## unidirectional |  9 | 10.71 |   10.71 |  15.48
+## bidirectional  | 71 | 84.52 |   84.52 | 100.00
+## <NA>           |  0 |  0.00 |    <NA> |   <NA>
+## 
+## psych_ipv_prev_couple_sev <categorical> 
+## # total N=84 valid N=83 mean=1.92 sd=0.91
+## 
+## Value          |  N | Raw % | Valid % | Cum. %
+## ----------------------------------------------
+## no violence    | 38 | 45.24 |   45.78 |  45.78
+## unidirectional | 14 | 16.67 |   16.87 |  62.65
+## bidirectional  | 31 | 36.90 |   37.35 | 100.00
+## <NA>           |  1 |  1.19 |    <NA> |   <NA>
+## 
+## sgm_ipv_prev_couple <categorical> 
+## # total N=84 valid N=83 mean=1.29 sd=0.62
+## 
+## Value          |  N | Raw % | Valid % | Cum. %
+## ----------------------------------------------
+## no violence    | 66 | 78.57 |   79.52 |  79.52
+## unidirectional | 10 | 11.90 |   12.05 |  91.57
+## bidirectional  |  7 |  8.33 |    8.43 | 100.00
+## <NA>           |  1 |  1.19 |    <NA> |   <NA>
+```
 
-## Mean, median, SD, range
+## Mean, median, SD, range 
+
 
 ``` r
 data %>% 
@@ -705,149 +734,153 @@ data %>%
   unite(range, c("min", "max"), sep = "-")
 ```
 
-    ## # A tibble: 8 × 5
-    ##   ColNames                   mean median     sd range 
-    ##   <chr>                     <dbl>  <dbl>  <dbl> <chr> 
-    ## 1 IHS_mean                  1.31    1.11  0.450 1-3.33
-    ## 2 CTS_phys_perp_HR          2.31    0    17.5   0-213 
-    ## 3 CTS_psych_perp_HR        21.7    10    27.6   0-149 
-    ## 4 CTS_psych_perp_HR_minor  17.4     8    20.5   0-90  
-    ## 5 CTS_psych_perp_HR_severe  4.03    0     9.67  0-83  
-    ## 6 CTS_sgm_perp_HR           0.628   0     2.52  0-25  
-    ## 7 PANAS_life_neg           14.3    12     5.82  10-46 
-    ## 8 PANAS_disc_neg           14.7    13     5.15  10-36
-
-These descriptives can be saved into a table if needed. If included in
-bivariate correlation table, flip `Colnames` and `.value` arguments
-above.
+```
+## # A tibble: 8 × 5
+##   ColNames                   mean median     sd range 
+##   <chr>                     <dbl>  <dbl>  <dbl> <chr> 
+## 1 IHS_mean                  1.31    1.11  0.450 1-3.33
+## 2 CTS_phys_perp_HR          2.31    0    17.5   0-213 
+## 3 CTS_psych_perp_HR        21.7    10    27.6   0-149 
+## 4 CTS_psych_perp_HR_minor  17.4     8    20.5   0-90  
+## 5 CTS_psych_perp_HR_severe  4.03    0     9.67  0-83  
+## 6 CTS_sgm_perp_HR           0.628   0     2.52  0-25  
+## 7 PANAS_life_neg           14.3    12     5.82  10-46 
+## 8 PANAS_disc_neg           14.7    13     5.15  10-36
+```
+These descriptives can be saved into a table if needed. If included in bivariate correlation table, flip `Colnames` and `.value` arguments above. 
 
 # Reliability
 
 ## IHS
 
+
 ``` r
 data %>% select(IHS_1:IHS_9) %>% alpha()
 ```
 
-    ## 
-    ## Reliability analysis   
-    ## Call: alpha(x = .)
-    ## 
-    ##   raw_alpha std.alpha G6(smc) average_r S/N   ase mean   sd median_r
-    ##       0.86      0.87    0.87      0.42 6.6 0.015  1.3 0.45      0.4
-    ## 
-    ##     95% confidence boundaries 
-    ##          lower alpha upper
-    ## Feldt     0.82  0.86  0.89
-    ## Duhachek  0.83  0.86  0.89
-    ## 
-    ##  Reliability if an item is dropped:
-    ##       raw_alpha std.alpha G6(smc) average_r S/N alpha se var.r med.r
-    ## IHS_1      0.87      0.87    0.87      0.46 6.8    0.014 0.016  0.44
-    ## IHS_2      0.85      0.86    0.86      0.43 6.0    0.017 0.020  0.38
-    ## IHS_3      0.82      0.84    0.83      0.39 5.2    0.020 0.011  0.37
-    ## IHS_4      0.83      0.85    0.85      0.41 5.6    0.018 0.016  0.38
-    ## IHS_5      0.85      0.86    0.87      0.44 6.4    0.016 0.019  0.43
-    ## IHS_6      0.83      0.84    0.85      0.40 5.4    0.019 0.016  0.39
-    ## IHS_7      0.84      0.85    0.85      0.41 5.6    0.018 0.017  0.40
-    ## IHS_8      0.86      0.87    0.87      0.45 6.5    0.016 0.017  0.42
-    ## IHS_9      0.84      0.85    0.85      0.41 5.6    0.017 0.020  0.38
-    ## 
-    ##  Item statistics 
-    ##         n raw.r std.r r.cor r.drop mean   sd
-    ## IHS_1 168  0.56  0.54  0.44   0.40  1.5 0.79
-    ## IHS_2 168  0.66  0.68  0.63   0.56  1.2 0.59
-    ## IHS_3 168  0.85  0.84  0.85   0.78  1.3 0.76
-    ## IHS_4 167  0.78  0.75  0.73   0.68  1.4 0.75
-    ## IHS_5 168  0.63  0.61  0.52   0.50  1.5 0.76
-    ## IHS_6 168  0.79  0.78  0.77   0.71  1.3 0.67
-    ## IHS_7 168  0.75  0.75  0.72   0.67  1.3 0.62
-    ## IHS_8 168  0.50  0.59  0.51   0.46  1.0 0.23
-    ## IHS_9 168  0.72  0.75  0.71   0.65  1.2 0.55
-    ## 
-    ## Non missing response frequency for each item
-    ##          1    2    3    4 miss
-    ## IHS_1 0.64 0.21 0.13 0.02 0.00
-    ## IHS_2 0.87 0.07 0.05 0.01 0.00
-    ## IHS_3 0.85 0.07 0.04 0.05 0.00
-    ## IHS_4 0.71 0.19 0.08 0.02 0.01
-    ## IHS_5 0.70 0.17 0.11 0.02 0.00
-    ## IHS_6 0.77 0.14 0.08 0.01 0.00
-    ## IHS_7 0.80 0.13 0.05 0.01 0.00
-    ## IHS_8 0.96 0.03 0.01 0.00 0.00
-    ## IHS_9 0.84 0.10 0.07 0.00 0.00
+```
+## 
+## Reliability analysis   
+## Call: alpha(x = .)
+## 
+##   raw_alpha std.alpha G6(smc) average_r S/N   ase mean   sd median_r
+##       0.86      0.87    0.87      0.42 6.6 0.015  1.3 0.45      0.4
+## 
+##     95% confidence boundaries 
+##          lower alpha upper
+## Feldt     0.82  0.86  0.89
+## Duhachek  0.83  0.86  0.89
+## 
+##  Reliability if an item is dropped:
+##       raw_alpha std.alpha G6(smc) average_r S/N alpha se var.r med.r
+## IHS_1      0.87      0.87    0.87      0.46 6.8    0.014 0.016  0.44
+## IHS_2      0.85      0.86    0.86      0.43 6.0    0.017 0.020  0.38
+## IHS_3      0.82      0.84    0.83      0.39 5.2    0.020 0.011  0.37
+## IHS_4      0.83      0.85    0.85      0.41 5.6    0.018 0.016  0.38
+## IHS_5      0.85      0.86    0.87      0.44 6.4    0.016 0.019  0.43
+## IHS_6      0.83      0.84    0.85      0.40 5.4    0.019 0.016  0.39
+## IHS_7      0.84      0.85    0.85      0.41 5.6    0.018 0.017  0.40
+## IHS_8      0.86      0.87    0.87      0.45 6.5    0.016 0.017  0.42
+## IHS_9      0.84      0.85    0.85      0.41 5.6    0.017 0.020  0.38
+## 
+##  Item statistics 
+##         n raw.r std.r r.cor r.drop mean   sd
+## IHS_1 168  0.56  0.54  0.44   0.40  1.5 0.79
+## IHS_2 168  0.66  0.68  0.63   0.56  1.2 0.59
+## IHS_3 168  0.85  0.84  0.85   0.78  1.3 0.76
+## IHS_4 167  0.78  0.75  0.73   0.68  1.4 0.75
+## IHS_5 168  0.63  0.61  0.52   0.50  1.5 0.76
+## IHS_6 168  0.79  0.78  0.77   0.71  1.3 0.67
+## IHS_7 168  0.75  0.75  0.72   0.67  1.3 0.62
+## IHS_8 168  0.50  0.59  0.51   0.46  1.0 0.23
+## IHS_9 168  0.72  0.75  0.71   0.65  1.2 0.55
+## 
+## Non missing response frequency for each item
+##          1    2    3    4 miss
+## IHS_1 0.64 0.21 0.13 0.02 0.00
+## IHS_2 0.87 0.07 0.05 0.01 0.00
+## IHS_3 0.85 0.07 0.04 0.05 0.00
+## IHS_4 0.71 0.19 0.08 0.02 0.01
+## IHS_5 0.70 0.17 0.11 0.02 0.00
+## IHS_6 0.77 0.14 0.08 0.01 0.00
+## IHS_7 0.80 0.13 0.05 0.01 0.00
+## IHS_8 0.96 0.03 0.01 0.00 0.00
+## IHS_9 0.84 0.10 0.07 0.00 0.00
+```
 
 ``` r
 data %>% select(IHS_1:IHS_9) %>% omega(plot = F)
 ```
 
-    ## Loading required namespace: GPArotation
+```
+## Loading required namespace: GPArotation
+```
 
-    ## Omega 
-    ## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
-    ##     digits = digits, title = title, sl = sl, labels = labels, 
-    ##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
-    ##     covar = covar)
-    ## Alpha:                 0.87 
-    ## G.6:                   0.87 
-    ## Omega Hierarchical:    0.71 
-    ## Omega H asymptotic:    0.79 
-    ## Omega Total            0.9 
-    ## 
-    ## Schmid Leiman Factor loadings greater than  0.2 
-    ##          g   F1*   F2*   F3*   h2   h2   u2   p2  com
-    ## IHS_1 0.39        0.21       0.20 0.20 0.80 0.75 1.64
-    ## IHS_2 0.60              0.57 0.70 0.70 0.30 0.52 2.03
-    ## IHS_3 0.75  0.45             0.78 0.78 0.22 0.71 1.74
-    ## IHS_4 0.64  0.57             0.74 0.74 0.26 0.56 1.99
-    ## IHS_5 0.45  0.22             0.27 0.27 0.73 0.76 1.64
-    ## IHS_6 0.68  0.27  0.30       0.64 0.64 0.36 0.74 1.74
-    ## IHS_7 0.64  0.28  0.26       0.56 0.56 0.44 0.74 1.72
-    ## IHS_8 0.48        0.22  0.34 0.41 0.41 0.59 0.57 2.41
-    ## IHS_9 0.66        0.43       0.63 0.63 0.37 0.69 1.77
-    ## 
-    ## With Sums of squares  of:
-    ##    g  F1*  F2*  F3*   h2 
-    ## 3.23 0.75 0.47 0.47 3.04 
-    ## 
-    ## general/max  1.06   max/min =   6.49
-    ## mean percent general =  0.67    with sd =  0.09 and cv of  0.14 
-    ## Explained Common Variance of the general factor =  0.66 
-    ## 
-    ## The degrees of freedom are 12  and the fit is  0.07 
-    ## The number of observations was  168  with Chi Square =  11.9  with prob <  0.45
-    ## The root mean square of the residuals is  0.02 
-    ## The df corrected root mean square of the residuals is  0.04
-    ## RMSEA index =  0  and the 90 % confidence intervals are  0 0.078
-    ## BIC =  -49.59
-    ## 
-    ## Compare this with the adequacy of just a general factor and no group factors
-    ## The degrees of freedom for just the general factor are 27  and the fit is  0.6 
-    ## The number of observations was  168  with Chi Square =  98.09  with prob <  5.3e-10
-    ## The root mean square of the residuals is  0.1 
-    ## The df corrected root mean square of the residuals is  0.12 
-    ## 
-    ## RMSEA index =  0.125  and the 90 % confidence intervals are  0.099 0.153
-    ## BIC =  -40.26 
-    ## 
-    ## Measures of factor score adequacy             
-    ##                                                  g   F1*   F2*   F3*
-    ## Correlation of scores with factors            0.85  0.69  0.59  0.68
-    ## Multiple R square of scores with factors      0.73  0.47  0.34  0.46
-    ## Minimum correlation of factor score estimates 0.45 -0.06 -0.31 -0.07
-    ## 
-    ##  Total, General and Subset omega for each subset
-    ##                                                  g  F1*  F2*  F3*
-    ## Omega total for total scores and subscales    0.90 0.82 0.70 0.68
-    ## Omega general for total scores and subscales  0.71 0.59 0.54 0.40
-    ## Omega group for total scores and subscales    0.10 0.22 0.16 0.28
+```
+## Omega 
+## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
+##     digits = digits, title = title, sl = sl, labels = labels, 
+##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
+##     covar = covar)
+## Alpha:                 0.87 
+## G.6:                   0.87 
+## Omega Hierarchical:    0.71 
+## Omega H asymptotic:    0.79 
+## Omega Total            0.9 
+## 
+## Schmid Leiman Factor loadings greater than  0.2 
+##          g   F1*   F2*   F3*   h2   h2   u2   p2  com
+## IHS_1 0.39        0.21       0.20 0.20 0.80 0.75 1.64
+## IHS_2 0.60              0.57 0.70 0.70 0.30 0.52 2.03
+## IHS_3 0.75  0.45             0.78 0.78 0.22 0.71 1.74
+## IHS_4 0.64  0.57             0.74 0.74 0.26 0.56 1.99
+## IHS_5 0.45  0.22             0.27 0.27 0.73 0.76 1.64
+## IHS_6 0.68  0.27  0.30       0.64 0.64 0.36 0.74 1.74
+## IHS_7 0.64  0.28  0.26       0.56 0.56 0.44 0.74 1.72
+## IHS_8 0.48        0.22  0.34 0.41 0.41 0.59 0.57 2.41
+## IHS_9 0.66        0.43       0.63 0.63 0.37 0.69 1.77
+## 
+## With Sums of squares  of:
+##    g  F1*  F2*  F3*   h2 
+## 3.23 0.75 0.47 0.47 3.04 
+## 
+## general/max  1.06   max/min =   6.49
+## mean percent general =  0.67    with sd =  0.09 and cv of  0.14 
+## Explained Common Variance of the general factor =  0.66 
+## 
+## The degrees of freedom are 12  and the fit is  0.07 
+## The number of observations was  168  with Chi Square =  11.9  with prob <  0.45
+## The root mean square of the residuals is  0.02 
+## The df corrected root mean square of the residuals is  0.04
+## RMSEA index =  0  and the 90 % confidence intervals are  0 0.078
+## BIC =  -49.59
+## 
+## Compare this with the adequacy of just a general factor and no group factors
+## The degrees of freedom for just the general factor are 27  and the fit is  0.6 
+## The number of observations was  168  with Chi Square =  98.09  with prob <  5.3e-10
+## The root mean square of the residuals is  0.1 
+## The df corrected root mean square of the residuals is  0.12 
+## 
+## RMSEA index =  0.125  and the 90 % confidence intervals are  0.099 0.153
+## BIC =  -40.26 
+## 
+## Measures of factor score adequacy             
+##                                                  g   F1*   F2*   F3*
+## Correlation of scores with factors            0.85  0.69  0.59  0.68
+## Multiple R square of scores with factors      0.73  0.47  0.34  0.46
+## Minimum correlation of factor score estimates 0.45 -0.06 -0.31 -0.07
+## 
+##  Total, General and Subset omega for each subset
+##                                                  g  F1*  F2*  F3*
+## Omega total for total scores and subscales    0.90 0.82 0.70 0.68
+## Omega general for total scores and subscales  0.71 0.59 0.54 0.40
+## Omega group for total scores and subscales    0.10 0.22 0.16 0.28
+```
+
 
 ## CTS2
 
-The reliability functions cannot accommodate missing data on any of the
-variables. If you do reliability with all 12 physical assault items, it
-will throw an error for `CTS_phys_weapon_perp` because this case is
-removed from the analysis. It will run excluding that item:
+The reliability functions cannot accommodate missing data on any of the variables. If you do reliability with all 12 physical assault items, it will throw an error for `CTS_phys_weapon_perp` because this case is removed from the analysis. It will run excluding that item: 
 
 Phys:
 
@@ -855,77 +888,85 @@ Phys:
 data %>% select(CTS_phys_threw_perp:CTS_phys_kick_perp) %>% na.omit() %>% select(-CTS_phys_weapon_perp) %>% omega(plot = F)
 ```
 
-    ## Warning in cor.smooth(r): Matrix was not positive definite, smoothing was done
+```
+## Warning in cor.smooth(r): Matrix was not positive definite, smoothing was done
+```
 
-    ## In factor.scores, the correlation matrix is singular, the pseudo inverse is  used
+```
+## In factor.scores, the correlation matrix is singular, the pseudo inverse is  used
+```
 
-    ## Warning in GPFoblq(A, Tmat = Tmat, normalize = normalize, eps = eps, maxit =
-    ## maxit, : convergence not obtained in GPFoblq. 1000 iterations used.
-    ## Warning in GPFoblq(A, Tmat = Tmat, normalize = normalize, eps = eps, maxit =
-    ## maxit, : Matrix was not positive definite, smoothing was done
-    ## Warning in GPFoblq(A, Tmat = Tmat, normalize = normalize, eps = eps, maxit =
-    ## maxit, : Matrix was not positive definite, smoothing was done
+```
+## Warning in GPFoblq(A, Tmat = Tmat, normalize = normalize, eps = eps, maxit =
+## maxit, : convergence not obtained in GPFoblq. 1000 iterations used.
+## Warning in GPFoblq(A, Tmat = Tmat, normalize = normalize, eps = eps, maxit =
+## maxit, : Matrix was not positive definite, smoothing was done
+## Warning in GPFoblq(A, Tmat = Tmat, normalize = normalize, eps = eps, maxit =
+## maxit, : Matrix was not positive definite, smoothing was done
+```
 
-    ## Omega 
-    ## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
-    ##     digits = digits, title = title, sl = sl, labels = labels, 
-    ##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
-    ##     covar = covar)
-    ## Alpha:                 0.97 
-    ## G.6:                   0.99 
-    ## Omega Hierarchical:    0.93 
-    ## Omega H asymptotic:    0.94 
-    ## Omega Total            0.99 
-    ## 
-    ## Schmid Leiman Factor loadings greater than  0.2 
-    ##                         g   F1*   F2*   F3*    h2   h2   u2   p2  com
-    ## CTS_phys_threw_perp  0.95  0.25              0.98 0.98 0.02 0.93 1.16
-    ## CTS_phys_twist_perp  0.96  0.26              0.99 0.99 0.01 0.92 1.17
-    ## CTS_phys_push_perp   0.96                    0.99 0.99 0.01 0.94 1.13
-    ## CTS_phys_grab_perp   0.94        0.30        0.97 0.97 0.03 0.90 1.22
-    ## CTS_phys_slap_perp   0.91        0.40        0.98 0.98 0.02 0.84 1.37
-    ## CTS_phys_punch_perp  0.92  0.23        0.31  1.00 1.00 0.00 0.85 1.36
-    ## CTS_phys_choke_perp  0.94  0.32              1.00 1.00 0.00 0.89 1.23
-    ## CTS_phys_slam_perp   0.95  0.30              1.00 1.00 0.00 0.91 1.21
-    ## CTS_phys_beat_perp   0.94  0.32              1.00 1.00 0.00 0.89 1.23
-    ## CTS_phys_burn_perp-                               0.00 1.00 0.40 2.76
-    ## CTS_phys_kick_perp   0.93  0.31              0.97 0.97 0.03 0.89 1.24
-    ## 
-    ## With Sums of squares  of:
-    ##    g  F1*  F2*  F3*   h2 
-    ## 8.87 0.62 0.27 0.13 9.78 
-    ## 
-    ## general/max  0.91   max/min =   74.93
-    ## mean percent general =  0.85    with sd =  0.15 and cv of  0.18 
-    ## Explained Common Variance of the general factor =  0.9 
-    ## 
-    ## The degrees of freedom are 25  and the fit is  19.07 
-    ## The number of observations was  162  with Chi Square =  2945.88  with prob <  0
-    ## The root mean square of the residuals is  0 
-    ## The df corrected root mean square of the residuals is  0
-    ## RMSEA index =  0.849  and the 90 % confidence intervals are  0.826 0.878
-    ## BIC =  2818.69
-    ## 
-    ## Compare this with the adequacy of just a general factor and no group factors
-    ## The degrees of freedom for just the general factor are 44  and the fit is  32.67 
-    ## The number of observations was  162  with Chi Square =  5091.83  with prob <  0
-    ## The root mean square of the residuals is  0.06 
-    ## The df corrected root mean square of the residuals is  0.07 
-    ## 
-    ## RMSEA index =  0.842  and the 90 % confidence intervals are  0.825 0.864
-    ## BIC =  4867.98 
-    ## 
-    ## Measures of factor score adequacy             
-    ##                                                  g   F1*  F2*  F3*
-    ## Correlation of scores with factors            0.97  0.64 0.79 0.97
-    ## Multiple R square of scores with factors      0.94  0.41 0.63 0.95
-    ## Minimum correlation of factor score estimates 0.88 -0.19 0.25 0.90
-    ## 
-    ##  Total, General and Subset omega for each subset
-    ##                                                  g  F1*  F2*  F3*
-    ## Omega total for total scores and subscales    0.99 1.00 0.79 0.94
-    ## Omega general for total scores and subscales  0.93 0.92 0.69 0.85
-    ## Omega group for total scores and subscales    0.05 0.08 0.10 0.09
+```
+## Omega 
+## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
+##     digits = digits, title = title, sl = sl, labels = labels, 
+##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
+##     covar = covar)
+## Alpha:                 0.97 
+## G.6:                   0.99 
+## Omega Hierarchical:    0.93 
+## Omega H asymptotic:    0.94 
+## Omega Total            0.99 
+## 
+## Schmid Leiman Factor loadings greater than  0.2 
+##                         g   F1*   F2*   F3*    h2   h2   u2   p2  com
+## CTS_phys_threw_perp  0.95  0.25              0.98 0.98 0.02 0.93 1.16
+## CTS_phys_twist_perp  0.96  0.26              0.99 0.99 0.01 0.92 1.17
+## CTS_phys_push_perp   0.96                    0.99 0.99 0.01 0.94 1.13
+## CTS_phys_grab_perp   0.94        0.30        0.97 0.97 0.03 0.90 1.22
+## CTS_phys_slap_perp   0.91        0.40        0.98 0.98 0.02 0.84 1.37
+## CTS_phys_punch_perp  0.92  0.23        0.31  1.00 1.00 0.00 0.85 1.36
+## CTS_phys_choke_perp  0.94  0.32              1.00 1.00 0.00 0.89 1.23
+## CTS_phys_slam_perp   0.95  0.30              1.00 1.00 0.00 0.91 1.21
+## CTS_phys_beat_perp   0.94  0.32              1.00 1.00 0.00 0.89 1.23
+## CTS_phys_burn_perp-                               0.00 1.00 0.40 2.76
+## CTS_phys_kick_perp   0.93  0.31              0.97 0.97 0.03 0.89 1.24
+## 
+## With Sums of squares  of:
+##    g  F1*  F2*  F3*   h2 
+## 8.87 0.62 0.27 0.13 9.78 
+## 
+## general/max  0.91   max/min =   74.93
+## mean percent general =  0.85    with sd =  0.15 and cv of  0.18 
+## Explained Common Variance of the general factor =  0.9 
+## 
+## The degrees of freedom are 25  and the fit is  19.07 
+## The number of observations was  162  with Chi Square =  2945.88  with prob <  0
+## The root mean square of the residuals is  0 
+## The df corrected root mean square of the residuals is  0
+## RMSEA index =  0.849  and the 90 % confidence intervals are  0.826 0.878
+## BIC =  2818.69
+## 
+## Compare this with the adequacy of just a general factor and no group factors
+## The degrees of freedom for just the general factor are 44  and the fit is  32.67 
+## The number of observations was  162  with Chi Square =  5091.83  with prob <  0
+## The root mean square of the residuals is  0.06 
+## The df corrected root mean square of the residuals is  0.07 
+## 
+## RMSEA index =  0.842  and the 90 % confidence intervals are  0.825 0.864
+## BIC =  4867.98 
+## 
+## Measures of factor score adequacy             
+##                                                  g   F1*  F2*  F3*
+## Correlation of scores with factors            0.97  0.64 0.79 0.97
+## Multiple R square of scores with factors      0.94  0.41 0.63 0.95
+## Minimum correlation of factor score estimates 0.88 -0.19 0.25 0.90
+## 
+##  Total, General and Subset omega for each subset
+##                                                  g  F1*  F2*  F3*
+## Omega total for total scores and subscales    0.99 1.00 0.79 0.94
+## Omega general for total scores and subscales  0.93 0.92 0.69 0.85
+## Omega group for total scores and subscales    0.05 0.08 0.10 0.09
+```
 
 Psych overall:
 
@@ -933,63 +974,65 @@ Psych overall:
 data %>% select(CTS_psych_swore_perp:CTS_psych_threat_perp) %>% omega(plot = F)
 ```
 
-    ## Omega 
-    ## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
-    ##     digits = digits, title = title, sl = sl, labels = labels, 
-    ##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
-    ##     covar = covar)
-    ## Alpha:                 0.86 
-    ## G.6:                   0.88 
-    ## Omega Hierarchical:    0.65 
-    ## Omega H asymptotic:    0.72 
-    ## Omega Total            0.91 
-    ## 
-    ## Schmid Leiman Factor loadings greater than  0.2 
-    ##                           g   F1*   F2*   F3*   h2   h2   u2   p2  com
-    ## CTS_psych_swore_perp   0.48        0.56       0.55 0.55 0.45 0.43 1.97
-    ## CTS_psych_shout_perp   0.64        0.56       0.73 0.73 0.27 0.56 2.00
-    ## CTS_psych_stomp_perp   0.69              0.42 0.67 0.67 0.33 0.71 1.75
-    ## CTS_psych_spite_perp   0.64              0.43 0.60 0.60 0.40 0.68 1.79
-    ## CTS_psych_insult_perp  0.50  0.30  0.27       0.42 0.42 0.58 0.61 2.25
-    ## CTS_psych_destroy_perp 0.53  0.70             0.78 0.78 0.22 0.36 1.91
-    ## CTS_psych_lousy_perp   0.59  0.35        0.22 0.52 0.52 0.48 0.67 1.95
-    ## CTS_psych_threat_perp  0.48  0.73             0.78 0.78 0.22 0.30 1.76
-    ## 
-    ## With Sums of squares  of:
-    ##    g  F1*  F2*  F3*   h2 
-    ## 2.64 1.24 0.72 0.43 3.30 
-    ## 
-    ## general/max  0.8   max/min =   7.63
-    ## mean percent general =  0.54    with sd =  0.16 and cv of  0.29 
-    ## Explained Common Variance of the general factor =  0.52 
-    ## 
-    ## The degrees of freedom are 7  and the fit is  0.08 
-    ## The number of observations was  168  with Chi Square =  12.91  with prob <  0.074
-    ## The root mean square of the residuals is  0.02 
-    ## The df corrected root mean square of the residuals is  0.04
-    ## RMSEA index =  0.071  and the 90 % confidence intervals are  0 0.131
-    ## BIC =  -22.96
-    ## 
-    ## Compare this with the adequacy of just a general factor and no group factors
-    ## The degrees of freedom for just the general factor are 20  and the fit is  1.22 
-    ## The number of observations was  168  with Chi Square =  198.21  with prob <  2.5e-31
-    ## The root mean square of the residuals is  0.16 
-    ## The df corrected root mean square of the residuals is  0.19 
-    ## 
-    ## RMSEA index =  0.23  and the 90 % confidence intervals are  0.202 0.261
-    ## BIC =  95.73 
-    ## 
-    ## Measures of factor score adequacy             
-    ##                                                  g  F1*  F2*   F3*
-    ## Correlation of scores with factors            0.83 0.85 0.72  0.58
-    ## Multiple R square of scores with factors      0.69 0.72 0.52  0.33
-    ## Minimum correlation of factor score estimates 0.38 0.44 0.05 -0.34
-    ## 
-    ##  Total, General and Subset omega for each subset
-    ##                                                  g  F1*  F2*  F3*
-    ## Omega total for total scores and subscales    0.91 0.84 0.78 0.77
-    ## Omega general for total scores and subscales  0.65 0.42 0.39 0.54
-    ## Omega group for total scores and subscales    0.20 0.42 0.39 0.23
+```
+## Omega 
+## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
+##     digits = digits, title = title, sl = sl, labels = labels, 
+##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
+##     covar = covar)
+## Alpha:                 0.86 
+## G.6:                   0.88 
+## Omega Hierarchical:    0.65 
+## Omega H asymptotic:    0.72 
+## Omega Total            0.91 
+## 
+## Schmid Leiman Factor loadings greater than  0.2 
+##                           g   F1*   F2*   F3*   h2   h2   u2   p2  com
+## CTS_psych_swore_perp   0.48        0.56       0.55 0.55 0.45 0.43 1.97
+## CTS_psych_shout_perp   0.64        0.56       0.73 0.73 0.27 0.56 2.00
+## CTS_psych_stomp_perp   0.69              0.42 0.67 0.67 0.33 0.71 1.75
+## CTS_psych_spite_perp   0.64              0.43 0.60 0.60 0.40 0.68 1.79
+## CTS_psych_insult_perp  0.50  0.30  0.27       0.42 0.42 0.58 0.61 2.25
+## CTS_psych_destroy_perp 0.53  0.70             0.78 0.78 0.22 0.36 1.91
+## CTS_psych_lousy_perp   0.59  0.35        0.22 0.52 0.52 0.48 0.67 1.95
+## CTS_psych_threat_perp  0.48  0.73             0.78 0.78 0.22 0.30 1.76
+## 
+## With Sums of squares  of:
+##    g  F1*  F2*  F3*   h2 
+## 2.64 1.24 0.72 0.43 3.30 
+## 
+## general/max  0.8   max/min =   7.63
+## mean percent general =  0.54    with sd =  0.16 and cv of  0.29 
+## Explained Common Variance of the general factor =  0.52 
+## 
+## The degrees of freedom are 7  and the fit is  0.08 
+## The number of observations was  168  with Chi Square =  12.91  with prob <  0.074
+## The root mean square of the residuals is  0.02 
+## The df corrected root mean square of the residuals is  0.04
+## RMSEA index =  0.071  and the 90 % confidence intervals are  0 0.131
+## BIC =  -22.96
+## 
+## Compare this with the adequacy of just a general factor and no group factors
+## The degrees of freedom for just the general factor are 20  and the fit is  1.22 
+## The number of observations was  168  with Chi Square =  198.21  with prob <  2.5e-31
+## The root mean square of the residuals is  0.16 
+## The df corrected root mean square of the residuals is  0.19 
+## 
+## RMSEA index =  0.23  and the 90 % confidence intervals are  0.202 0.261
+## BIC =  95.73 
+## 
+## Measures of factor score adequacy             
+##                                                  g  F1*  F2*   F3*
+## Correlation of scores with factors            0.83 0.85 0.72  0.58
+## Multiple R square of scores with factors      0.69 0.72 0.52  0.33
+## Minimum correlation of factor score estimates 0.38 0.44 0.05 -0.34
+## 
+##  Total, General and Subset omega for each subset
+##                                                  g  F1*  F2*  F3*
+## Omega total for total scores and subscales    0.91 0.84 0.78 0.77
+## Omega general for total scores and subscales  0.65 0.42 0.39 0.54
+## Omega group for total scores and subscales    0.20 0.42 0.39 0.23
+```
 
 Psych minor:
 
@@ -997,67 +1040,75 @@ Psych minor:
 data %>% select(CTS_psych_swore_perp, CTS_psych_shout_perp, CTS_psych_stomp_perp, CTS_psych_spite_perp) %>% omega(plot = F)
 ```
 
-    ## Warning in fa.stats(r = r, f = f, phi = phi, n.obs = n.obs, np.obs = np.obs, :
-    ## The estimated weights for the factor scores are probably incorrect.  Try a
-    ## different factor score estimation method.
+```
+## Warning in fa.stats(r = r, f = f, phi = phi, n.obs = n.obs, np.obs = np.obs, :
+## The estimated weights for the factor scores are probably incorrect.  Try a
+## different factor score estimation method.
+```
 
-    ## Warning in fac(r = r, nfactors = nfactors, n.obs = n.obs, rotate = rotate, : An
-    ## ultra-Heywood case was detected.  Examine the results carefully
+```
+## Warning in fac(r = r, nfactors = nfactors, n.obs = n.obs, rotate = rotate, : An
+## ultra-Heywood case was detected.  Examine the results carefully
+```
 
-    ## Warning in cov2cor(t(w) %*% r %*% w): diag(V) had non-positive or NA entries;
-    ## the non-finite result may be dubious
+```
+## Warning in cov2cor(t(w) %*% r %*% w): diag(V) had non-positive or NA entries;
+## the non-finite result may be dubious
+```
 
-    ## Omega 
-    ## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
-    ##     digits = digits, title = title, sl = sl, labels = labels, 
-    ##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
-    ##     covar = covar)
-    ## Alpha:                 0.79 
-    ## G.6:                   0.77 
-    ## Omega Hierarchical:    0.67 
-    ## Omega H asymptotic:    0.78 
-    ## Omega Total            0.85 
-    ## 
-    ## Schmid Leiman Factor loadings greater than  0.2 
-    ##                         g   F1* F2* F3*   h2   h2   u2   p2  com
-    ## CTS_psych_swore_perp 0.40  0.62         0.58 0.58 0.42 0.27 1.73
-    ## CTS_psych_shout_perp 0.52  0.66         0.69 0.69 0.31 0.40 1.92
-    ## CTS_psych_stomp_perp 0.85               0.68 0.68 0.32 1.07 1.01
-    ## CTS_psych_spite_perp 0.77               0.59 0.59 0.41 1.01 1.02
-    ## 
-    ## With Sums of squares  of:
-    ##    g  F1*  F2*  F3*   h2 
-    ## 1.76 0.83 0.00 0.01 1.63 
-    ## 
-    ## general/max  1.08   max/min =   Inf
-    ## mean percent general =  0.69    with sd =  0.41 and cv of  0.6 
-    ## Explained Common Variance of the general factor =  0.68 
-    ## 
-    ## The degrees of freedom are -3  and the fit is  0 
-    ## The number of observations was  168  with Chi Square =  0  with prob <  NA
-    ## The root mean square of the residuals is  0 
-    ## The df corrected root mean square of the residuals is  NA
-    ## 
-    ## Compare this with the adequacy of just a general factor and no group factors
-    ## The degrees of freedom for just the general factor are 2  and the fit is  0.3 
-    ## The number of observations was  168  with Chi Square =  49.44  with prob <  1.8e-11
-    ## The root mean square of the residuals is  0.17 
-    ## The df corrected root mean square of the residuals is  0.3 
-    ## 
-    ## RMSEA index =  0.376  and the 90 % confidence intervals are  0.29 0.471
-    ## BIC =  39.19 
-    ## 
-    ## Measures of factor score adequacy             
-    ##                                                  g  F1* F2*   F3*
-    ## Correlation of scores with factors            0.91 0.84   0  0.20
-    ## Multiple R square of scores with factors      0.83 0.70   0  0.04
-    ## Minimum correlation of factor score estimates 0.65 0.40  -1 -0.92
-    ## 
-    ##  Total, General and Subset omega for each subset
-    ##                                                  g  F1* F2*  F3*
-    ## Omega total for total scores and subscales    0.85 0.77  NA 0.81
-    ## Omega general for total scores and subscales  0.67 0.26  NA 0.81
-    ## Omega group for total scores and subscales    0.17 0.51  NA 0.00
+```
+## Omega 
+## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
+##     digits = digits, title = title, sl = sl, labels = labels, 
+##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
+##     covar = covar)
+## Alpha:                 0.79 
+## G.6:                   0.77 
+## Omega Hierarchical:    0.67 
+## Omega H asymptotic:    0.78 
+## Omega Total            0.85 
+## 
+## Schmid Leiman Factor loadings greater than  0.2 
+##                         g   F1* F2* F3*   h2   h2   u2   p2  com
+## CTS_psych_swore_perp 0.40  0.62         0.58 0.58 0.42 0.27 1.73
+## CTS_psych_shout_perp 0.52  0.66         0.69 0.69 0.31 0.40 1.92
+## CTS_psych_stomp_perp 0.85               0.68 0.68 0.32 1.07 1.01
+## CTS_psych_spite_perp 0.77               0.59 0.59 0.41 1.01 1.02
+## 
+## With Sums of squares  of:
+##    g  F1*  F2*  F3*   h2 
+## 1.76 0.83 0.00 0.01 1.63 
+## 
+## general/max  1.08   max/min =   Inf
+## mean percent general =  0.69    with sd =  0.41 and cv of  0.6 
+## Explained Common Variance of the general factor =  0.68 
+## 
+## The degrees of freedom are -3  and the fit is  0 
+## The number of observations was  168  with Chi Square =  0  with prob <  NA
+## The root mean square of the residuals is  0 
+## The df corrected root mean square of the residuals is  NA
+## 
+## Compare this with the adequacy of just a general factor and no group factors
+## The degrees of freedom for just the general factor are 2  and the fit is  0.3 
+## The number of observations was  168  with Chi Square =  49.44  with prob <  1.8e-11
+## The root mean square of the residuals is  0.17 
+## The df corrected root mean square of the residuals is  0.3 
+## 
+## RMSEA index =  0.376  and the 90 % confidence intervals are  0.29 0.471
+## BIC =  39.19 
+## 
+## Measures of factor score adequacy             
+##                                                  g  F1* F2*   F3*
+## Correlation of scores with factors            0.91 0.84   0  0.20
+## Multiple R square of scores with factors      0.83 0.70   0  0.04
+## Minimum correlation of factor score estimates 0.65 0.40  -1 -0.92
+## 
+##  Total, General and Subset omega for each subset
+##                                                  g  F1* F2*  F3*
+## Omega total for total scores and subscales    0.85 0.77  NA 0.81
+## Omega general for total scores and subscales  0.67 0.26  NA 0.81
+## Omega group for total scores and subscales    0.17 0.51  NA 0.00
+```
 
 Psych severe:
 
@@ -1065,60 +1116,64 @@ Psych severe:
 data %>% select(CTS_psych_insult_perp, CTS_psych_destroy_perp, CTS_psych_lousy_perp, CTS_psych_threat_perp) %>% omega(plot = F)
 ```
 
-    ## Warning in GPFoblq(A, Tmat = Tmat, normalize = normalize, eps = eps, maxit =
-    ## maxit, : convergence not obtained in GPFoblq. 1000 iterations used.
+```
+## Warning in GPFoblq(A, Tmat = Tmat, normalize = normalize, eps = eps, maxit =
+## maxit, : convergence not obtained in GPFoblq. 1000 iterations used.
+```
 
-    ## Omega 
-    ## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
-    ##     digits = digits, title = title, sl = sl, labels = labels, 
-    ##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
-    ##     covar = covar)
-    ## Alpha:                 0.82 
-    ## G.6:                   0.79 
-    ## Omega Hierarchical:    0.82 
-    ## Omega H asymptotic:    0.97 
-    ## Omega Total            0.84 
-    ## 
-    ## Schmid Leiman Factor loadings greater than  0.2 
-    ##                           g  F1*  F2*  F3*   h2   h2   u2   p2  com
-    ## CTS_psych_insult_perp  0.56                0.35 0.35 0.65 0.89 1.24
-    ## CTS_psych_destroy_perp 0.86                0.78 0.78 0.22 0.96 1.08
-    ## CTS_psych_lousy_perp   0.65                0.46 0.46 0.54 0.91 1.19
-    ## CTS_psych_threat_perp  0.85                0.75 0.75 0.25 0.96 1.09
-    ## 
-    ## With Sums of squares  of:
-    ##    g  F1*  F2*  F3*   h2 
-    ## 2.20 0.05 0.07 0.02 1.50 
-    ## 
-    ## general/max  1.46   max/min =   65.64
-    ## mean percent general =  0.93    with sd =  0.04 and cv of  0.04 
-    ## Explained Common Variance of the general factor =  0.94 
-    ## 
-    ## The degrees of freedom are -3  and the fit is  0 
-    ## The number of observations was  168  with Chi Square =  0  with prob <  NA
-    ## The root mean square of the residuals is  0 
-    ## The df corrected root mean square of the residuals is  NA
-    ## 
-    ## Compare this with the adequacy of just a general factor and no group factors
-    ## The degrees of freedom for just the general factor are 2  and the fit is  0.01 
-    ## The number of observations was  168  with Chi Square =  0.96  with prob <  0.62
-    ## The root mean square of the residuals is  0.01 
-    ## The df corrected root mean square of the residuals is  0.03 
-    ## 
-    ## RMSEA index =  0  and the 90 % confidence intervals are  0 0.124
-    ## BIC =  -9.29 
-    ## 
-    ## Measures of factor score adequacy             
-    ##                                                  g   F1*   F2*   F3*
-    ## Correlation of scores with factors            0.93  0.23  0.29  0.25
-    ## Multiple R square of scores with factors      0.86  0.05  0.08  0.06
-    ## Minimum correlation of factor score estimates 0.72 -0.90 -0.83 -0.87
-    ## 
-    ##  Total, General and Subset omega for each subset
-    ##                                                  g  F1*  F2* F3*
-    ## Omega total for total scores and subscales    0.84 0.86 0.57  NA
-    ## Omega general for total scores and subscales  0.82 0.84 0.52  NA
-    ## Omega group for total scores and subscales    0.02 0.03 0.05  NA
+```
+## Omega 
+## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
+##     digits = digits, title = title, sl = sl, labels = labels, 
+##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
+##     covar = covar)
+## Alpha:                 0.82 
+## G.6:                   0.79 
+## Omega Hierarchical:    0.82 
+## Omega H asymptotic:    0.97 
+## Omega Total            0.84 
+## 
+## Schmid Leiman Factor loadings greater than  0.2 
+##                           g  F1*  F2*  F3*   h2   h2   u2   p2  com
+## CTS_psych_insult_perp  0.56                0.35 0.35 0.65 0.89 1.24
+## CTS_psych_destroy_perp 0.86                0.78 0.78 0.22 0.96 1.08
+## CTS_psych_lousy_perp   0.65                0.46 0.46 0.54 0.91 1.19
+## CTS_psych_threat_perp  0.85                0.75 0.75 0.25 0.96 1.09
+## 
+## With Sums of squares  of:
+##    g  F1*  F2*  F3*   h2 
+## 2.20 0.05 0.07 0.02 1.50 
+## 
+## general/max  1.46   max/min =   65.64
+## mean percent general =  0.93    with sd =  0.04 and cv of  0.04 
+## Explained Common Variance of the general factor =  0.94 
+## 
+## The degrees of freedom are -3  and the fit is  0 
+## The number of observations was  168  with Chi Square =  0  with prob <  NA
+## The root mean square of the residuals is  0 
+## The df corrected root mean square of the residuals is  NA
+## 
+## Compare this with the adequacy of just a general factor and no group factors
+## The degrees of freedom for just the general factor are 2  and the fit is  0.01 
+## The number of observations was  168  with Chi Square =  0.96  with prob <  0.62
+## The root mean square of the residuals is  0.01 
+## The df corrected root mean square of the residuals is  0.03 
+## 
+## RMSEA index =  0  and the 90 % confidence intervals are  0 0.124
+## BIC =  -9.29 
+## 
+## Measures of factor score adequacy             
+##                                                  g   F1*   F2*   F3*
+## Correlation of scores with factors            0.93  0.23  0.29  0.25
+## Multiple R square of scores with factors      0.86  0.05  0.08  0.06
+## Minimum correlation of factor score estimates 0.72 -0.90 -0.83 -0.87
+## 
+##  Total, General and Subset omega for each subset
+##                                                  g  F1*  F2* F3*
+## Omega total for total scores and subscales    0.84 0.86 0.57  NA
+## Omega general for total scores and subscales  0.82 0.84 0.52  NA
+## Omega group for total scores and subscales    0.02 0.03 0.05  NA
+```
 
 SGM-specific:
 
@@ -1126,60 +1181,62 @@ SGM-specific:
 data %>% select(CTS_sgm_threatout_perp:CTS_sgm_pda_perp) %>% omega(plot = F)
 ```
 
-    ## Omega 
-    ## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
-    ##     digits = digits, title = title, sl = sl, labels = labels, 
-    ##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
-    ##     covar = covar)
-    ## Alpha:                 0.6 
-    ## G.6:                   0.74 
-    ## Omega Hierarchical:    0.46 
-    ## Omega H asymptotic:    0.57 
-    ## Omega Total            0.8 
-    ## 
-    ## Schmid Leiman Factor loadings greater than  0.2 
-    ##                            g   F1*   F2*   F3*    h2   h2   u2   p2  com
-    ## CTS_sgm_threatout_perp  0.35  0.91              0.96 0.96 0.04 0.13 1.29
-    ## CTS_sgm_alone_perp      0.25                         0.07 0.93 0.88 1.27
-    ## CTS_sgm_rumor_perp      0.90        0.20        0.84 0.84 0.16 0.95 1.10
-    ## CTS_sgm_out_perp        0.58  0.81              0.99 0.99 0.01 0.34 1.83
-    ## CTS_sgm_pda_perp-                        -0.43       0.19 0.81 0.00 1.01
-    ## 
-    ## With Sums of squares  of:
-    ##    g  F1*  F2*  F3*   h2 
-    ## 1.32 1.49 0.04 0.20 2.64 
-    ## 
-    ## general/max  0.5   max/min =   60.31
-    ## mean percent general =  0.46    with sd =  0.43 and cv of  0.94 
-    ## Explained Common Variance of the general factor =  0.43 
-    ## 
-    ## The degrees of freedom are -2  and the fit is  0 
-    ## The number of observations was  168  with Chi Square =  0  with prob <  NA
-    ## The root mean square of the residuals is  0 
-    ## The df corrected root mean square of the residuals is  NA
-    ## 
-    ## Compare this with the adequacy of just a general factor and no group factors
-    ## The degrees of freedom for just the general factor are 5  and the fit is  2.37 
-    ## The number of observations was  168  with Chi Square =  388.47  with prob <  9.1e-82
-    ## The root mean square of the residuals is  0.23 
-    ## The df corrected root mean square of the residuals is  0.33 
-    ## 
-    ## RMSEA index =  0.676  and the 90 % confidence intervals are  0.621 0.736
-    ## BIC =  362.85 
-    ## 
-    ## Measures of factor score adequacy             
-    ##                                                  g  F1*   F2*   F3*
-    ## Correlation of scores with factors            0.92 0.97  0.22  0.50
-    ## Multiple R square of scores with factors      0.84 0.93  0.05  0.25
-    ## Minimum correlation of factor score estimates 0.69 0.86 -0.90 -0.51
-    ## 
-    ##  Total, General and Subset omega for each subset
-    ##                                                  g  F1*  F2*  F3*
-    ## Omega total for total scores and subscales    0.80 0.99 0.84 0.16
-    ## Omega general for total scores and subscales  0.46 0.22 0.81 0.03
-    ## Omega group for total scores and subscales    0.34 0.76 0.04 0.12
+```
+## Omega 
+## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
+##     digits = digits, title = title, sl = sl, labels = labels, 
+##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
+##     covar = covar)
+## Alpha:                 0.6 
+## G.6:                   0.74 
+## Omega Hierarchical:    0.46 
+## Omega H asymptotic:    0.57 
+## Omega Total            0.8 
+## 
+## Schmid Leiman Factor loadings greater than  0.2 
+##                            g   F1*   F2*   F3*    h2   h2   u2   p2  com
+## CTS_sgm_threatout_perp  0.35  0.91              0.96 0.96 0.04 0.13 1.29
+## CTS_sgm_alone_perp      0.25                         0.07 0.93 0.88 1.27
+## CTS_sgm_rumor_perp      0.90        0.20        0.84 0.84 0.16 0.95 1.10
+## CTS_sgm_out_perp        0.58  0.81              0.99 0.99 0.01 0.34 1.83
+## CTS_sgm_pda_perp-                        -0.43       0.19 0.81 0.00 1.01
+## 
+## With Sums of squares  of:
+##    g  F1*  F2*  F3*   h2 
+## 1.32 1.49 0.04 0.20 2.64 
+## 
+## general/max  0.5   max/min =   60.31
+## mean percent general =  0.46    with sd =  0.43 and cv of  0.94 
+## Explained Common Variance of the general factor =  0.43 
+## 
+## The degrees of freedom are -2  and the fit is  0 
+## The number of observations was  168  with Chi Square =  0  with prob <  NA
+## The root mean square of the residuals is  0 
+## The df corrected root mean square of the residuals is  NA
+## 
+## Compare this with the adequacy of just a general factor and no group factors
+## The degrees of freedom for just the general factor are 5  and the fit is  2.37 
+## The number of observations was  168  with Chi Square =  388.47  with prob <  9.1e-82
+## The root mean square of the residuals is  0.23 
+## The df corrected root mean square of the residuals is  0.33 
+## 
+## RMSEA index =  0.676  and the 90 % confidence intervals are  0.621 0.736
+## BIC =  362.85 
+## 
+## Measures of factor score adequacy             
+##                                                  g  F1*   F2*   F3*
+## Correlation of scores with factors            0.92 0.97  0.22  0.50
+## Multiple R square of scores with factors      0.84 0.93  0.05  0.25
+## Minimum correlation of factor score estimates 0.69 0.86 -0.90 -0.51
+## 
+##  Total, General and Subset omega for each subset
+##                                                  g  F1*  F2*  F3*
+## Omega total for total scores and subscales    0.80 0.99 0.84 0.16
+## Omega general for total scores and subscales  0.46 0.22 0.81 0.03
+## Omega group for total scores and subscales    0.34 0.76 0.04 0.12
+```
 
-## PANAS
+## PANAS 
 
 Life stressor discussion:
 
@@ -1187,65 +1244,67 @@ Life stressor discussion:
 data %>% select(c("PANAS_life_2", "PANAS_life_4", "PANAS_life_6", "PANAS_life_7", "PANAS_life_8", "PANAS_life_11", "PANAS_life_13", "PANAS_life_15", "PANAS_life_18", "PANAS_life_20")) %>% omega(plot = F)
 ```
 
-    ## Omega 
-    ## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
-    ##     digits = digits, title = title, sl = sl, labels = labels, 
-    ##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
-    ##     covar = covar)
-    ## Alpha:                 0.91 
-    ## G.6:                   0.92 
-    ## Omega Hierarchical:    0.75 
-    ## Omega H asymptotic:    0.8 
-    ## Omega Total            0.93 
-    ## 
-    ## Schmid Leiman Factor loadings greater than  0.2 
-    ##                  g   F1*   F2*   F3*   h2   h2   u2   p2  com
-    ## PANAS_life_2  0.71  0.21        0.31 0.65 0.65 0.35 0.77 1.63
-    ## PANAS_life_4  0.64              0.31 0.55 0.55 0.45 0.75 1.68
-    ## PANAS_life_6  0.45              0.57 0.53 0.53 0.47 0.38 1.92
-    ## PANAS_life_7  0.70  0.38             0.66 0.66 0.34 0.75 1.65
-    ## PANAS_life_8  0.59        0.52       0.63 0.63 0.37 0.55 2.04
-    ## PANAS_life_11 0.62        0.68       0.84 0.84 0.16 0.45 1.99
-    ## PANAS_life_13 0.60        0.24  0.42 0.59 0.59 0.41 0.61 2.15
-    ## PANAS_life_15 0.69  0.39             0.65 0.65 0.35 0.74 1.66
-    ## PANAS_life_18 0.63  0.34             0.51 0.51 0.49 0.76 1.58
-    ## PANAS_life_20 0.74  0.50             0.80 0.80 0.20 0.69 1.75
-    ## 
-    ## With Sums of squares  of:
-    ##    g  F1*  F2*  F3*   h2 
-    ## 4.11 0.73 0.85 0.71 4.22 
-    ## 
-    ## general/max  0.97   max/min =   5.92
-    ## mean percent general =  0.64    with sd =  0.14 and cv of  0.22 
-    ## Explained Common Variance of the general factor =  0.64 
-    ## 
-    ## The degrees of freedom are 18  and the fit is  0.41 
-    ## The number of observations was  168  with Chi Square =  66.32  with prob <  1.9e-07
-    ## The root mean square of the residuals is  0.04 
-    ## The df corrected root mean square of the residuals is  0.06
-    ## RMSEA index =  0.126  and the 90 % confidence intervals are  0.095 0.16
-    ## BIC =  -25.91
-    ## 
-    ## Compare this with the adequacy of just a general factor and no group factors
-    ## The degrees of freedom for just the general factor are 35  and the fit is  1.45 
-    ## The number of observations was  168  with Chi Square =  235.23  with prob <  1.6e-31
-    ## The root mean square of the residuals is  0.12 
-    ## The df corrected root mean square of the residuals is  0.14 
-    ## 
-    ## RMSEA index =  0.184  and the 90 % confidence intervals are  0.163 0.208
-    ## BIC =  55.89 
-    ## 
-    ## Measures of factor score adequacy             
-    ##                                                  g   F1*  F2*  F3*
-    ## Correlation of scores with factors            0.87  0.61 0.81 0.72
-    ## Multiple R square of scores with factors      0.76  0.37 0.65 0.52
-    ## Minimum correlation of factor score estimates 0.52 -0.25 0.30 0.05
-    ## 
-    ##  Total, General and Subset omega for each subset
-    ##                                                  g  F1*  F2*  F3*
-    ## Omega total for total scores and subscales    0.93 0.88 0.85 0.80
-    ## Omega general for total scores and subscales  0.75 0.66 0.42 0.55
-    ## Omega group for total scores and subscales    0.12 0.22 0.42 0.25
+```
+## Omega 
+## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
+##     digits = digits, title = title, sl = sl, labels = labels, 
+##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
+##     covar = covar)
+## Alpha:                 0.91 
+## G.6:                   0.92 
+## Omega Hierarchical:    0.75 
+## Omega H asymptotic:    0.8 
+## Omega Total            0.93 
+## 
+## Schmid Leiman Factor loadings greater than  0.2 
+##                  g   F1*   F2*   F3*   h2   h2   u2   p2  com
+## PANAS_life_2  0.71  0.21        0.31 0.65 0.65 0.35 0.77 1.63
+## PANAS_life_4  0.64              0.31 0.55 0.55 0.45 0.75 1.68
+## PANAS_life_6  0.45              0.57 0.53 0.53 0.47 0.38 1.92
+## PANAS_life_7  0.70  0.38             0.66 0.66 0.34 0.75 1.65
+## PANAS_life_8  0.59        0.52       0.63 0.63 0.37 0.55 2.04
+## PANAS_life_11 0.62        0.68       0.84 0.84 0.16 0.45 1.99
+## PANAS_life_13 0.60        0.24  0.42 0.59 0.59 0.41 0.61 2.15
+## PANAS_life_15 0.69  0.39             0.65 0.65 0.35 0.74 1.66
+## PANAS_life_18 0.63  0.34             0.51 0.51 0.49 0.76 1.58
+## PANAS_life_20 0.74  0.50             0.80 0.80 0.20 0.69 1.75
+## 
+## With Sums of squares  of:
+##    g  F1*  F2*  F3*   h2 
+## 4.11 0.73 0.85 0.71 4.22 
+## 
+## general/max  0.97   max/min =   5.92
+## mean percent general =  0.64    with sd =  0.14 and cv of  0.22 
+## Explained Common Variance of the general factor =  0.64 
+## 
+## The degrees of freedom are 18  and the fit is  0.41 
+## The number of observations was  168  with Chi Square =  66.32  with prob <  1.9e-07
+## The root mean square of the residuals is  0.04 
+## The df corrected root mean square of the residuals is  0.06
+## RMSEA index =  0.126  and the 90 % confidence intervals are  0.095 0.16
+## BIC =  -25.91
+## 
+## Compare this with the adequacy of just a general factor and no group factors
+## The degrees of freedom for just the general factor are 35  and the fit is  1.45 
+## The number of observations was  168  with Chi Square =  235.23  with prob <  1.6e-31
+## The root mean square of the residuals is  0.12 
+## The df corrected root mean square of the residuals is  0.14 
+## 
+## RMSEA index =  0.184  and the 90 % confidence intervals are  0.163 0.208
+## BIC =  55.89 
+## 
+## Measures of factor score adequacy             
+##                                                  g   F1*  F2*  F3*
+## Correlation of scores with factors            0.87  0.61 0.81 0.72
+## Multiple R square of scores with factors      0.76  0.37 0.65 0.52
+## Minimum correlation of factor score estimates 0.52 -0.25 0.30 0.05
+## 
+##  Total, General and Subset omega for each subset
+##                                                  g  F1*  F2*  F3*
+## Omega total for total scores and subscales    0.93 0.88 0.85 0.80
+## Omega general for total scores and subscales  0.75 0.66 0.42 0.55
+## Omega group for total scores and subscales    0.12 0.22 0.42 0.25
+```
 
 Discrimination stressor discussion:
 
@@ -1253,165 +1312,155 @@ Discrimination stressor discussion:
 data %>% select(c("PANAS_disc_2", "PANAS_disc_4", "PANAS_disc_6", "PANAS_disc_7", "PANAS_disc_8", "PANAS_disc_11", "PANAS_disc_13", "PANAS_disc_15", "PANAS_disc_18", "PANAS_disc_20")) %>% omega(plot = F)
 ```
 
-    ## Omega 
-    ## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
-    ##     digits = digits, title = title, sl = sl, labels = labels, 
-    ##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
-    ##     covar = covar)
-    ## Alpha:                 0.88 
-    ## G.6:                   0.89 
-    ## Omega Hierarchical:    0.68 
-    ## Omega H asymptotic:    0.75 
-    ## Omega Total            0.91 
-    ## 
-    ## Schmid Leiman Factor loadings greater than  0.2 
-    ##                  g   F1*   F2*   F3*   h2   h2   u2   p2  com
-    ## PANAS_disc_2  0.64  0.21  0.44       0.64 0.64 0.36 0.63 2.01
-    ## PANAS_disc_4  0.63        0.41       0.60 0.60 0.40 0.67 1.91
-    ## PANAS_disc_6  0.66              0.61 0.81 0.81 0.19 0.54 1.99
-    ## PANAS_disc_7  0.52              0.25 0.36 0.36 0.64 0.74 1.73
-    ## PANAS_disc_8  0.46        0.52       0.51 0.51 0.49 0.42 2.17
-    ## PANAS_disc_11 0.40        0.51       0.43 0.43 0.57 0.38 1.92
-    ## PANAS_disc_13 0.54              0.36 0.44 0.44 0.56 0.67 1.85
-    ## PANAS_disc_15 0.60  0.52             0.63 0.63 0.37 0.58 1.97
-    ## PANAS_disc_18 0.53  0.41             0.47 0.47 0.53 0.60 2.04
-    ## PANAS_disc_20 0.69  0.44        0.23 0.72 0.72 0.28 0.65 1.99
-    ## 
-    ## With Sums of squares  of:
-    ##    g  F1*  F2*  F3*   h2 
-    ## 3.30 0.73 0.94 0.64 3.34 
-    ## 
-    ## general/max  0.99   max/min =   5.2
-    ## mean percent general =  0.59    with sd =  0.11 and cv of  0.19 
-    ## Explained Common Variance of the general factor =  0.59 
-    ## 
-    ## The degrees of freedom are 18  and the fit is  0.12 
-    ## The number of observations was  168  with Chi Square =  19.72  with prob <  0.35
-    ## The root mean square of the residuals is  0.02 
-    ## The df corrected root mean square of the residuals is  0.04
-    ## RMSEA index =  0.023  and the 90 % confidence intervals are  0 0.075
-    ## BIC =  -72.51
-    ## 
-    ## Compare this with the adequacy of just a general factor and no group factors
-    ## The degrees of freedom for just the general factor are 35  and the fit is  0.93 
-    ## The number of observations was  168  with Chi Square =  151.56  with prob <  1.9e-16
-    ## The root mean square of the residuals is  0.13 
-    ## The df corrected root mean square of the residuals is  0.14 
-    ## 
-    ## RMSEA index =  0.141  and the 90 % confidence intervals are  0.119 0.165
-    ## BIC =  -27.78 
-    ## 
-    ## Measures of factor score adequacy             
-    ##                                                  g   F1*  F2*  F3*
-    ## Correlation of scores with factors            0.84  0.68 0.73 0.72
-    ## Multiple R square of scores with factors      0.70  0.46 0.53 0.52
-    ## Minimum correlation of factor score estimates 0.41 -0.08 0.07 0.03
-    ## 
-    ##  Total, General and Subset omega for each subset
-    ##                                                  g  F1*  F2*  F3*
-    ## Omega total for total scores and subscales    0.91 0.81 0.81 0.75
-    ## Omega general for total scores and subscales  0.68 0.51 0.46 0.50
-    ## Omega group for total scores and subscales    0.15 0.29 0.35 0.25
+```
+## Omega 
+## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
+##     digits = digits, title = title, sl = sl, labels = labels, 
+##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
+##     covar = covar)
+## Alpha:                 0.88 
+## G.6:                   0.89 
+## Omega Hierarchical:    0.68 
+## Omega H asymptotic:    0.75 
+## Omega Total            0.91 
+## 
+## Schmid Leiman Factor loadings greater than  0.2 
+##                  g   F1*   F2*   F3*   h2   h2   u2   p2  com
+## PANAS_disc_2  0.64  0.21  0.44       0.64 0.64 0.36 0.63 2.01
+## PANAS_disc_4  0.63        0.41       0.60 0.60 0.40 0.67 1.91
+## PANAS_disc_6  0.66              0.61 0.81 0.81 0.19 0.54 1.99
+## PANAS_disc_7  0.52              0.25 0.36 0.36 0.64 0.74 1.73
+## PANAS_disc_8  0.46        0.52       0.51 0.51 0.49 0.42 2.17
+## PANAS_disc_11 0.40        0.51       0.43 0.43 0.57 0.38 1.92
+## PANAS_disc_13 0.54              0.36 0.44 0.44 0.56 0.67 1.85
+## PANAS_disc_15 0.60  0.52             0.63 0.63 0.37 0.58 1.97
+## PANAS_disc_18 0.53  0.41             0.47 0.47 0.53 0.60 2.04
+## PANAS_disc_20 0.69  0.44        0.23 0.72 0.72 0.28 0.65 1.99
+## 
+## With Sums of squares  of:
+##    g  F1*  F2*  F3*   h2 
+## 3.30 0.73 0.94 0.64 3.34 
+## 
+## general/max  0.99   max/min =   5.2
+## mean percent general =  0.59    with sd =  0.11 and cv of  0.19 
+## Explained Common Variance of the general factor =  0.59 
+## 
+## The degrees of freedom are 18  and the fit is  0.12 
+## The number of observations was  168  with Chi Square =  19.72  with prob <  0.35
+## The root mean square of the residuals is  0.02 
+## The df corrected root mean square of the residuals is  0.04
+## RMSEA index =  0.023  and the 90 % confidence intervals are  0 0.075
+## BIC =  -72.51
+## 
+## Compare this with the adequacy of just a general factor and no group factors
+## The degrees of freedom for just the general factor are 35  and the fit is  0.93 
+## The number of observations was  168  with Chi Square =  151.56  with prob <  1.9e-16
+## The root mean square of the residuals is  0.13 
+## The df corrected root mean square of the residuals is  0.14 
+## 
+## RMSEA index =  0.141  and the 90 % confidence intervals are  0.119 0.165
+## BIC =  -27.78 
+## 
+## Measures of factor score adequacy             
+##                                                  g   F1*  F2*  F3*
+## Correlation of scores with factors            0.84  0.68 0.73 0.72
+## Multiple R square of scores with factors      0.70  0.46 0.53 0.52
+## Minimum correlation of factor score estimates 0.41 -0.08 0.07 0.03
+## 
+##  Total, General and Subset omega for each subset
+##                                                  g  F1*  F2*  F3*
+## Omega total for total scores and subscales    0.91 0.81 0.81 0.75
+## Omega general for total scores and subscales  0.68 0.51 0.46 0.50
+## Omega group for total scores and subscales    0.15 0.29 0.35 0.25
+```
 
 ## CSI
+
 
 ``` r
 data %>% select(CSI_1:CSI_10, CSI_11r, CSI_12, CSI_13r, CSI_14r, CSI_15, CSI_16r) %>% omega(plot = F)
 ```
 
-    ## Omega 
-    ## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
-    ##     digits = digits, title = title, sl = sl, labels = labels, 
-    ##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
-    ##     covar = covar)
-    ## Alpha:                 0.95 
-    ## G.6:                   0.96 
-    ## Omega Hierarchical:    0.83 
-    ## Omega H asymptotic:    0.86 
-    ## Omega Total            0.96 
-    ## 
-    ## Schmid Leiman Factor loadings greater than  0.2 
-    ##            g   F1*   F2*   F3*   h2   h2   u2   p2  com
-    ## CSI_1   0.58                   0.39 0.39 0.61 0.87 1.32
-    ## CSI_2   0.71  0.22             0.58 0.58 0.42 0.86 1.33
-    ## CSI_3   0.79  0.37             0.76 0.76 0.24 0.82 1.43
-    ## CSI_4   0.80  0.35             0.77 0.77 0.23 0.84 1.38
-    ## CSI_5   0.82  0.30             0.77 0.77 0.23 0.86 1.32
-    ## CSI_6   0.74  0.39             0.70 0.70 0.30 0.77 1.56
-    ## CSI_7   0.77  0.37             0.73 0.73 0.27 0.81 1.45
-    ## CSI_8   0.63  0.39             0.59 0.59 0.41 0.68 1.86
-    ## CSI_9   0.65  0.25  0.20       0.53 0.53 0.47 0.81 1.49
-    ## CSI_10  0.82  0.33             0.79 0.79 0.21 0.85 1.34
-    ## CSI_11r 0.49              0.37 0.42 0.42 0.58 0.58 2.19
-    ## CSI_12  0.69        0.33       0.62 0.62 0.38 0.77 1.60
-    ## CSI_13r 0.71              0.39 0.68 0.68 0.32 0.74 1.69
-    ## CSI_14r 0.67        0.37       0.61 0.61 0.39 0.73 1.73
-    ## CSI_15  0.48        0.40       0.40 0.40 0.60 0.58 2.02
-    ## CSI_16r 0.82        0.26  0.21 0.82 0.82 0.18 0.83 1.43
-    ## 
-    ## With Sums of squares  of:
-    ##    g  F1*  F2*  F3*   h2 
-    ## 7.98 1.11 0.65 0.43 6.76 
-    ## 
-    ## general/max  1.18   max/min =   15.83
-    ## mean percent general =  0.78    with sd =  0.09 and cv of  0.12 
-    ## Explained Common Variance of the general factor =  0.79 
-    ## 
-    ## The degrees of freedom are 75  and the fit is  0.7 
-    ## The number of observations was  168  with Chi Square =  110.6  with prob <  0.0047
-    ## The root mean square of the residuals is  0.02 
-    ## The df corrected root mean square of the residuals is  0.03
-    ## RMSEA index =  0.053  and the 90 % confidence intervals are  0.03 0.074
-    ## BIC =  -273.69
-    ## 
-    ## Compare this with the adequacy of just a general factor and no group factors
-    ## The degrees of freedom for just the general factor are 104  and the fit is  1.73 
-    ## The number of observations was  168  with Chi Square =  276.66  with prob <  1.3e-17
-    ## The root mean square of the residuals is  0.09 
-    ## The df corrected root mean square of the residuals is  0.1 
-    ## 
-    ## RMSEA index =  0.099  and the 90 % confidence intervals are  0.086 0.114
-    ## BIC =  -256.23 
-    ## 
-    ## Measures of factor score adequacy             
-    ##                                                  g   F1*  F2*   F3*
-    ## Correlation of scores with factors            0.92  0.56 0.71  0.61
-    ## Multiple R square of scores with factors      0.84  0.32 0.50  0.37
-    ## Minimum correlation of factor score estimates 0.68 -0.37 0.00 -0.26
-    ## 
-    ##  Total, General and Subset omega for each subset
-    ##                                                  g  F1*  F2*  F3*
-    ## Omega total for total scores and subscales    0.96 0.94 0.82 0.69
-    ## Omega general for total scores and subscales  0.83 0.80 0.65 0.49
-    ## Omega group for total scores and subscales    0.08 0.15 0.17 0.20
+```
+## Omega 
+## Call: omegah(m = m, nfactors = nfactors, fm = fm, key = key, flip = flip, 
+##     digits = digits, title = title, sl = sl, labels = labels, 
+##     plot = plot, n.obs = n.obs, rotate = rotate, Phi = Phi, option = option, 
+##     covar = covar)
+## Alpha:                 0.95 
+## G.6:                   0.96 
+## Omega Hierarchical:    0.83 
+## Omega H asymptotic:    0.86 
+## Omega Total            0.96 
+## 
+## Schmid Leiman Factor loadings greater than  0.2 
+##            g   F1*   F2*   F3*   h2   h2   u2   p2  com
+## CSI_1   0.58                   0.39 0.39 0.61 0.87 1.32
+## CSI_2   0.71  0.22             0.58 0.58 0.42 0.86 1.33
+## CSI_3   0.79  0.37             0.76 0.76 0.24 0.82 1.43
+## CSI_4   0.80  0.35             0.77 0.77 0.23 0.84 1.38
+## CSI_5   0.82  0.30             0.77 0.77 0.23 0.86 1.32
+## CSI_6   0.74  0.39             0.70 0.70 0.30 0.77 1.56
+## CSI_7   0.77  0.37             0.73 0.73 0.27 0.81 1.45
+## CSI_8   0.63  0.39             0.59 0.59 0.41 0.68 1.86
+## CSI_9   0.65  0.25  0.20       0.53 0.53 0.47 0.81 1.49
+## CSI_10  0.82  0.33             0.79 0.79 0.21 0.85 1.34
+## CSI_11r 0.49              0.37 0.42 0.42 0.58 0.58 2.19
+## CSI_12  0.69        0.33       0.62 0.62 0.38 0.77 1.60
+## CSI_13r 0.71              0.39 0.68 0.68 0.32 0.74 1.69
+## CSI_14r 0.67        0.37       0.61 0.61 0.39 0.73 1.73
+## CSI_15  0.48        0.40       0.40 0.40 0.60 0.58 2.02
+## CSI_16r 0.82        0.26  0.21 0.82 0.82 0.18 0.83 1.43
+## 
+## With Sums of squares  of:
+##    g  F1*  F2*  F3*   h2 
+## 7.98 1.11 0.65 0.43 6.76 
+## 
+## general/max  1.18   max/min =   15.83
+## mean percent general =  0.78    with sd =  0.09 and cv of  0.12 
+## Explained Common Variance of the general factor =  0.79 
+## 
+## The degrees of freedom are 75  and the fit is  0.7 
+## The number of observations was  168  with Chi Square =  110.6  with prob <  0.0047
+## The root mean square of the residuals is  0.02 
+## The df corrected root mean square of the residuals is  0.03
+## RMSEA index =  0.053  and the 90 % confidence intervals are  0.03 0.074
+## BIC =  -273.69
+## 
+## Compare this with the adequacy of just a general factor and no group factors
+## The degrees of freedom for just the general factor are 104  and the fit is  1.73 
+## The number of observations was  168  with Chi Square =  276.66  with prob <  1.3e-17
+## The root mean square of the residuals is  0.09 
+## The df corrected root mean square of the residuals is  0.1 
+## 
+## RMSEA index =  0.099  and the 90 % confidence intervals are  0.086 0.114
+## BIC =  -256.23 
+## 
+## Measures of factor score adequacy             
+##                                                  g   F1*  F2*   F3*
+## Correlation of scores with factors            0.92  0.56 0.71  0.61
+## Multiple R square of scores with factors      0.84  0.32 0.50  0.37
+## Minimum correlation of factor score estimates 0.68 -0.37 0.00 -0.26
+## 
+##  Total, General and Subset omega for each subset
+##                                                  g  F1*  F2*  F3*
+## Omega total for total scores and subscales    0.96 0.94 0.82 0.69
+## Omega general for total scores and subscales  0.83 0.80 0.65 0.49
+## Omega group for total scores and subscales    0.08 0.15 0.17 0.20
+```
 
-# Correlations
 
-NOTE FOR UPDATE: will update the code from here on down if there are
-different results for minor vs. severe psych aggression that would
-warrant separating them in the manuscript.
+# Correlations 
 
-Ok so following recommendations from Kenny et al. 2006 (and Griffin &
-Gonzalez, 1995), we need to do a bivariate version of the intraclass
-correlation coefficient in order to get 1) regular ICCs for all
-variables, 2) intrapartner correlations (i.e. within-person) - however
-note that this still conflates dyad-level variability in those
-estimates, and 3) inter-partner correlations.
+NOTE FOR UPDATE: will update the code from here on down if there are different results for minor vs. severe psych aggression that would warrant separating them in the manuscript. 
 
-We can get a Bayesian version of this by following some recommendations
-from Solomon Kurz on his blog:
-<https://solomonkurz.netlify.app/blog/2019-02-16-bayesian-correlations-let-s-talk-options/>
+Ok so following recommendations from Kenny et al. 2006 (and Griffin & Gonzalez, 1995), we need to do a bivariate version of the intraclass correlation coefficient in order to get 1) regular ICCs for all variables, 2) intrapartner correlations (i.e. within-person) - however note that this still conflates dyad-level variability in those estimates, and 3) inter-partner correlations. 
 
-For this, we’ll be doing the multivariate version of the model where we
-put in standardized predictors and specify multivariate correlations,
-which will essentially just give us a correlation matrix from a brms
-model (f9 in his post). This will require some data wrangling to get the
-output in a format suitable for a table.
+We can get a Bayesian version of this by following some recommendations from Solomon Kurz on his blog: https://solomonkurz.netlify.app/blog/2019-02-16-bayesian-correlations-let-s-talk-options/
 
-First, let’s restructure the data into actor and partner variables
-(which are needed to compute the ICCs and pairwise correlations - see
-Kenny et al., 2006 + Griffin & Gonzalez, 1995 for more details here),
-then we standardize each of those variables
+For this, we'll be doing the multivariate version of the model where we put in standardized predictors and specify multivariate correlations, which will essentially just give us a correlation matrix from a brms model (f9 in his post). This will require some data wrangling to get the output in a format suitable for a table. 
+
+First, let's restructure the data into actor and partner variables (which are needed to compute the ICCs and pairwise correlations - see Kenny et al., 2006 + Griffin & Gonzalez, 1995 for more details here), then we standardize each of those variables
 
 ``` r
 # functions we'll need
@@ -1443,8 +1492,7 @@ corr <- corr |>
   mutate(across(c(IHS_mean_actor:CTS_sgm_perp_HR_partner), std)) 
 ```
 
-Next, let’s run that model. We can use a weakly regularizing prior on
-correlation coefficients (it’s still pretty wide).
+Next, let's run that model. We can use a weakly regularizing prior on correlation coefficients (it's still pretty wide). 
 
 ``` r
 corr_model <- brm(
@@ -1460,17 +1508,8 @@ corr_model <- brm(
 )
 ```
 
-That’s a hell of a lot to work through and so I didn’t summarize the
-output here (but it did sample well). Let’s wrangle that data into a
-matrix for reporting. We’ll take advantage of the fact that the
-`matrix()` function in R will split up a single column into a matrix
-going down the column (e.g., if there are 10 values, values 1-5 go in
-column1 and then 6-10 go in column2). We’ll use this to label the
-correlation coefficients from the output in the order that we want. I
-created an Excel sheet with what I wanted the correlation matrix to look
-like to guide me through this part. Perhaps one day I’ll figure out a
-way to automate a function to do this for me automatically, but today is
-not that day.
+That's a hell of a lot to work through and so I didn't summarize the output here (but it did sample well). Let's wrangle that data into a matrix for reporting. We'll take advantage of the fact that the `matrix()` function in R will split up a single column into a matrix going down the column (e.g., if there are 10 values, values 1-5 go in column1 and then 6-10 go in column2). We'll use this to label the correlation coefficients from the output in the order that we want. I created an Excel sheet with what I wanted the correlation matrix to look like to guide me through this part. Perhaps one day I'll figure out a way to automate a function to do this for me automatically, but today is not that day. 
+
 
 ``` r
 output <- as_draws_df(corr_model) |> 
@@ -1543,9 +1582,53 @@ output <- as_draws_df(corr_model) |>
   arrange(id) 
 ```
 
-    ## Loading required namespace: rstan
+```
+## Loading required package: rstan
+```
 
-    ## Warning: Dropping 'draws_df' class as required metadata was removed.
+```
+## Loading required package: StanHeaders
+```
+
+```
+## 
+## rstan version 2.36.0.9000 (Stan version 2.36.0)
+```
+
+```
+## For execution on a local, multicore CPU with excess RAM we recommend calling
+## options(mc.cores = parallel::detectCores()).
+## To avoid recompilation of unchanged Stan programs, we recommend calling
+## rstan_options(auto_write = TRUE)
+## For within-chain threading using `reduce_sum()` or `map_rect()` Stan functions,
+## change `threads_per_chain` option:
+## rstan_options(threads_per_chain = 1)
+```
+
+```
+## Do not specify '-march=native' in 'LOCAL_CPPFLAGS' or a Makevars file
+```
+
+```
+## 
+## Attaching package: 'rstan'
+```
+
+```
+## The following object is masked from 'package:psych':
+## 
+##     lookup
+```
+
+```
+## The following object is masked from 'package:tidyr':
+## 
+##     extract
+```
+
+```
+## Warning: Dropping 'draws_df' class as required metadata was removed.
+```
 
 ``` r
 output_matrix <- output$r_CrI 
@@ -1556,22 +1639,25 @@ output_matrix <- as.data.frame(matrix(output_matrix, nrow = 6)) |>
 output_matrix
 ```
 
-    ##    variable               is         na_life         na_disc         cts_phys
-    ## 1        is  .12 [-.00, .23] .01 [-.11, .12] .07 [-.05, .18] -.07 [-.18, .05]
-    ## 2   na_life  .11 [-.00, .22]  .20 [.08, .30] .09 [-.02, .20]   .34 [.23, .43]
-    ## 3   na_disc   .24 [.13, .35]  .58 [.49, .65]  .21 [.09, .31]   .14 [.02, .25]
-    ## 4  cts_phys -.05 [-.16, .07]  .24 [.13, .34] .03 [-.09, .14]   .49 [.40, .57]
-    ## 5 cts_psych   .13 [.02, .24]  .26 [.15, .36] .11 [-.00, .22]   .42 [.32, .51]
-    ## 6   cts_sgm  .05 [-.06, .17] .11 [-.01, .22]  .13 [.02, .25]   .25 [.14, .36]
-    ##         cts_psych        cts_sgm
-    ## 1 .07 [-.04, .19] .21 [.10, .31]
-    ## 2  .35 [.25, .45] .19 [.07, .30]
-    ## 3  .16 [.04, .26] .21 [.10, .32]
-    ## 4  .33 [.22, .43] .12 [.00, .23]
-    ## 5  .82 [.79, .85] .26 [.15, .36]
-    ## 6  .13 [.02, .24] .16 [.05, .27]
+```
+##    variable               is         na_life         na_disc         cts_phys
+## 1        is  .12 [-.00, .23] .01 [-.11, .12] .07 [-.05, .18] -.07 [-.18, .05]
+## 2   na_life  .11 [-.00, .22]  .20 [.08, .30] .09 [-.02, .20]   .34 [.23, .43]
+## 3   na_disc   .24 [.13, .35]  .58 [.49, .65]  .21 [.09, .31]   .14 [.02, .25]
+## 4  cts_phys -.05 [-.16, .07]  .24 [.13, .34] .03 [-.09, .14]   .49 [.40, .57]
+## 5 cts_psych   .13 [.02, .24]  .26 [.15, .36] .11 [-.00, .22]   .42 [.32, .51]
+## 6   cts_sgm  .05 [-.06, .17] .11 [-.01, .22]  .13 [.02, .25]   .25 [.14, .36]
+##         cts_psych        cts_sgm
+## 1 .07 [-.04, .19] .21 [.10, .31]
+## 2  .35 [.25, .45] .19 [.07, .30]
+## 3  .16 [.04, .26] .21 [.10, .32]
+## 4  .33 [.22, .43] .12 [.00, .23]
+## 5  .82 [.79, .85] .26 [.15, .36]
+## 6  .13 [.02, .24] .16 [.05, .27]
+```
 
 Then save this:
+
 
 ``` r
 write.csv(output_matrix, "output/corr_table1.csv")
@@ -1579,14 +1665,10 @@ write.csv(output_matrix, "output/corr_table1.csv")
 
 ## Covariates
 
-For now, let’s keep things simple and not include these correlations in
-the main dissertation document. However, they are important to know for
-contextualizing results. Let’s have a quick look at this, using the
-`correlation` package from `easystats`.
+For now, let's keep things simple and not include these correlations in the main dissertation document. However, they are important to know for contextualizing results. Let's have a quick look at this, using the `correlation` package from `easystats`. 
 
-First, let’s look at covariates on negative affect - this is a “quick &
-dirty” method, ignore the significance tests b/c they are inaccurate due
-to couple nesting.
+First, let's look at covariates on negative affect - this is a "quick & dirty" method, ignore the significance tests b/c they are inaccurate due to couple nesting. 
+
 
 ``` r
 corr_na <- data |> 
@@ -1603,17 +1685,18 @@ s_na <- summary(c_na)
 display(s_na)
 ```
 
-| Parameter |    CSI    |  Sev_disc  | Sev_life |  DC_disc   | DC_life |  NA_disc   |
-|:----------|:---------:|:----------:|:--------:|:----------:|:-------:|:----------:|
-| NA_life   | -0.31\*\* |    0.01    |  -0.01   |   -0.17    | -0.25\* | 0.62\*\*\* |
-| NA_disc   |   -0.22   |    0.08    |   0.10   |   -0.12    |  -0.08  |            |
-| DC_life   |   0.14    |    0.10    |  -0.11   | 0.44\*\*\* |         |            |
-| DC_disc   | 0.30\*\*  |    0.14    |   0.05   |            |         |            |
-| Sev_life  |   -0.09   | 0.40\*\*\* |          |            |         |            |
-| Sev_disc  |   0.01    |            |          |            |         |            |
 
-Correlation Matrix (pearson-method)
 
+Table: Correlation Matrix (pearson-method)
+
+|Parameter |     CSI | Sev_disc | Sev_life | DC_disc | DC_life | NA_disc |
+|:---------|:-------:|:--------:|:--------:|:-------:|:-------:|:-------:|
+|NA_life   | -0.31** |     0.01 |    -0.01 |   -0.17 |  -0.25* | 0.62*** |
+|NA_disc   |   -0.22 |     0.08 |     0.10 |   -0.12 |   -0.08 |         |
+|DC_life   |    0.14 |     0.10 |    -0.11 | 0.44*** |         |         |
+|DC_disc   |  0.30** |     0.14 |     0.05 |         |         |         |
+|Sev_life  |   -0.09 |  0.40*** |          |         |         |         |
+|Sev_disc  |    0.01 |          |          |         |         |         |
 p-value adjustment method: Holm (1979)
 
 Next, covariates on IPV:
@@ -1632,25 +1715,24 @@ s_ipv <- summary(c_ipv)
 display(s_ipv)
 ```
 
-| Parameter | rel_length |  age  | CTS_sgm  | CTS_psych  | CTS_phys |
-|:----------|:----------:|:-----:|:--------:|:----------:|:--------:|
-| IS        |    0.03    | 0.03  |   0.07   |    0.16    |  -0.04   |
-| CTS_phys  |    0.02    | -0.01 | 0.29\*\* | 0.47\*\*\* |          |
-| CTS_psych |    0.14    | 0.09  |   0.19   |            |          |
-| CTS_sgm   |    0.12    | 0.08  |          |            |          |
-| age       | 0.34\*\*\* |       |          |            |          |
 
-Correlation Matrix (pearson-method)
 
+Table: Correlation Matrix (pearson-method)
+
+|Parameter | rel_length |   age | CTS_sgm | CTS_psych | CTS_phys |
+|:---------|:----------:|:-----:|:-------:|:---------:|:--------:|
+|IS        |       0.03 |  0.03 |    0.07 |      0.16 |    -0.04 |
+|CTS_phys  |       0.02 | -0.01 |  0.29** |   0.47*** |          |
+|CTS_psych |       0.14 |  0.09 |    0.19 |           |          |
+|CTS_sgm   |       0.12 |  0.08 |         |           |          |
+|age       |    0.34*** |       |         |           |          |
 p-value adjustment method: Holm (1979)
 
 # Missing data evaluation
 
-Let’s look to see if missing data is meaningfully related to key
-variables of interest: IHS, IPV perpetration, PANAS, relationship
-length, age, relationship satisfaction.
+Let's look to see if missing data is meaningfully related to key variables of interest: IHS, IPV perpetration, PANAS, relationship length, age, relationship satisfaction.
 
-As a reminder, here’s how many have complete data:
+As a reminder, here's how many have complete data: 
 
 ``` r
 data %>% 
@@ -1671,32 +1753,30 @@ data %>%
   filter(CoupleID != 1083)
 ```
 
-    ## # A tibble: 144 × 263
-    ##    CoupleID ParticipantID   Age race_categ  race_categ_spec race_dich race_match
-    ##       <dbl>         <dbl> <dbl> <fct>       <fct>           <fct>     <fct>     
-    ##  1     1002           103    30 Hispanic/L… Hispanic/Latinx BIPOC     Both BIPOC
-    ##  2     1002           104    29 Asian       Asian           BIPOC     Both BIPOC
-    ##  3     1006           111    21 Hispanic/L… Hispanic/Latinx BIPOC     Mixed (on…
-    ##  4     1006           112    21 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
-    ##  5     1007           113    24 Multiracial Non-Hispanic M… BIPOC     Mixed (on…
-    ##  6     1007           114    25 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
-    ##  7     1009           117    20 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
-    ##  8     1009           118    26 Hispanic/W… Hispanic/White  BIPOC     Mixed (on…
-    ##  9     1011           121    21 Non-Hispan… Non-Hispanic W… Non-Hisp… Both non-…
-    ## 10     1011           122    20 Non-Hispan… Non-Hispanic W… Non-Hisp… Both non-…
-    ## # ℹ 134 more rows
-    ## # ℹ 256 more variables: Educ <fct>, Income <fct>, Employment <fct>,
-    ## #   SxlOrx <fct>, SxlOrx_Other_Text <chr>, SxlOrx_match <fct>,
-    ## #   sxlorx_dich <fct>, GenderIdent <fct>, GenderIdent_Other_Text <chr>,
-    ## #   GenderIdent_match <fct>, gender_three <fct>, Cohab <fct>,
-    ## #   cohab_length_mths <dbl>, cohab_length_yrs <dbl>, rel_length_mths <dbl>,
-    ## #   rel_length_yrs <dbl>, CSI_1 <dbl>, CSI_2 <dbl>, CSI_3 <dbl>, CSI_4 <dbl>, …
+```
+## # A tibble: 144 × 263
+##    CoupleID ParticipantID   Age race_categ  race_categ_spec race_dich race_match
+##       <dbl>         <dbl> <dbl> <fct>       <fct>           <fct>     <fct>     
+##  1     1002           103    30 Hispanic/L… Hispanic/Latinx BIPOC     Both BIPOC
+##  2     1002           104    29 Asian       Asian           BIPOC     Both BIPOC
+##  3     1006           111    21 Hispanic/L… Hispanic/Latinx BIPOC     Mixed (on…
+##  4     1006           112    21 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
+##  5     1007           113    24 Multiracial Non-Hispanic M… BIPOC     Mixed (on…
+##  6     1007           114    25 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
+##  7     1009           117    20 Non-Hispan… Non-Hispanic W… Non-Hisp… Mixed (on…
+##  8     1009           118    26 Hispanic/W… Hispanic/White  BIPOC     Mixed (on…
+##  9     1011           121    21 Non-Hispan… Non-Hispanic W… Non-Hisp… Both non-…
+## 10     1011           122    20 Non-Hispan… Non-Hispanic W… Non-Hisp… Both non-…
+## # ℹ 134 more rows
+## # ℹ 256 more variables: Educ <fct>, Income <fct>, Employment <fct>,
+## #   SxlOrx <fct>, SxlOrx_Other_Text <chr>, SxlOrx_match <fct>,
+## #   sxlorx_dich <fct>, GenderIdent <fct>, GenderIdent_Other_Text <chr>,
+## #   GenderIdent_match <fct>, gender_three <fct>, Cohab <fct>,
+## #   cohab_length_mths <dbl>, cohab_length_yrs <dbl>, rel_length_mths <dbl>,
+## #   rel_length_yrs <dbl>, CSI_1 <dbl>, CSI_2 <dbl>, CSI_3 <dbl>, CSI_4 <dbl>, …
+```
 
-Now let’s create a variable based on that to see if missingness relates
-to anything important. This code marks the 11 couples who are missing
-data on any of the variables of interest, plus 1 couple where one of the
-partners did not report their race/ethnicity. This leaves us with 72
-couples with complete data for this study.
+Now let's create a variable based on that to see if missingness relates to anything important. This code marks the 11 couples who are missing data on any of the variables of interest, plus 1 couple where one of the partners did not report their race/ethnicity. This leaves us with 72 couples with complete data for this study. 
 
 ``` r
 data <- data |> 
@@ -1704,242 +1784,254 @@ data <- data |>
 frq(data$missing_any)
 ```
 
-    ## x <lgl> 
-    ## # total N=168 valid N=168 mean=0.14 sd=0.35
-    ## 
-    ## Value |   N | Raw % | Valid % | Cum. %
-    ## --------------------------------------
-    ## FALSE | 144 | 85.71 |   85.71 |  85.71
-    ## TRUE  |  24 | 14.29 |   14.29 | 100.00
-    ## <NA>  |   0 |  0.00 |    <NA> |   <NA>
+```
+## x <lgl> 
+## # total N=168 valid N=168 mean=0.14 sd=0.35
+## 
+## Value |   N | Raw % | Valid % | Cum. %
+## --------------------------------------
+## FALSE | 144 | 85.71 |   85.71 |  85.71
+## TRUE  |  24 | 14.29 |   14.29 | 100.00
+## <NA>  |   0 |  0.00 |    <NA> |   <NA>
+```
 
-Next, let’s run a series of linear regressions to see if missing any
-data is related to meaningful differences in our variables of interest.
-We’ll do this in a frequentist framework as these are preliminary
-analyses and these estimates are likely to be very similar in a Bayesian
-model.
+Next, let's run a series of linear regressions to see if missing any data is related to meaningful differences in our variables of interest. We'll do this in a frequentist framework as these are preliminary analyses and these estimates are likely to be very similar in a Bayesian model. 
+
 
 ``` r
 summary(lm(IHS_mean ~ missing_any, data = data))
 ```
 
-    ## 
-    ## Call:
-    ## lm(formula = IHS_mean ~ missing_any, data = data)
-    ## 
-    ## Residuals:
-    ##     Min      1Q  Median      3Q     Max 
-    ## -0.3256 -0.3256 -0.2083  0.1188  2.0077 
-    ## 
-    ## Coefficients:
-    ##                 Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)      1.32562    0.03744  35.408   <2e-16 ***
-    ## missing_anyTRUE -0.11728    0.09905  -1.184    0.238    
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Residual standard error: 0.4493 on 166 degrees of freedom
-    ## Multiple R-squared:  0.008375,   Adjusted R-squared:  0.002401 
-    ## F-statistic: 1.402 on 1 and 166 DF,  p-value: 0.2381
+```
+## 
+## Call:
+## lm(formula = IHS_mean ~ missing_any, data = data)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -0.3256 -0.3256 -0.2083  0.1188  2.0077 
+## 
+## Coefficients:
+##                 Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)      1.32562    0.03744  35.408   <2e-16 ***
+## missing_anyTRUE -0.11728    0.09905  -1.184    0.238    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 0.4493 on 166 degrees of freedom
+## Multiple R-squared:  0.008375,	Adjusted R-squared:  0.002401 
+## F-statistic: 1.402 on 1 and 166 DF,  p-value: 0.2381
+```
 
 ``` r
 summary(lm(CTS_phys_perp_HR ~ missing_any, data = data))
 ```
 
-    ## 
-    ## Call:
-    ## lm(formula = CTS_phys_perp_HR ~ missing_any, data = data)
-    ## 
-    ## Residuals:
-    ##     Min      1Q  Median      3Q     Max 
-    ##  -2.618  -2.618  -2.618  -1.618 210.382 
-    ## 
-    ## Coefficients:
-    ##                 Estimate Std. Error t value Pr(>|t|)  
-    ## (Intercept)        2.618      1.460   1.793   0.0748 .
-    ## missing_anyTRUE   -2.518      4.181  -0.602   0.5478  
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Residual standard error: 17.52 on 162 degrees of freedom
-    ##   (4 observations deleted due to missingness)
-    ## Multiple R-squared:  0.002234,   Adjusted R-squared:  -0.003925 
-    ## F-statistic: 0.3628 on 1 and 162 DF,  p-value: 0.5478
+```
+## 
+## Call:
+## lm(formula = CTS_phys_perp_HR ~ missing_any, data = data)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+##  -2.618  -2.618  -2.618  -1.618 210.382 
+## 
+## Coefficients:
+##                 Estimate Std. Error t value Pr(>|t|)  
+## (Intercept)        2.618      1.460   1.793   0.0748 .
+## missing_anyTRUE   -2.518      4.181  -0.602   0.5478  
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 17.52 on 162 degrees of freedom
+##   (4 observations deleted due to missingness)
+## Multiple R-squared:  0.002234,	Adjusted R-squared:  -0.003925 
+## F-statistic: 0.3628 on 1 and 162 DF,  p-value: 0.5478
+```
 
 ``` r
 summary(lm(CTS_psych_perp_HR ~ missing_any, data = data))
 ```
 
-    ## 
-    ## Call:
-    ## lm(formula = CTS_psych_perp_HR ~ missing_any, data = data)
-    ## 
-    ## Residuals:
-    ##     Min      1Q  Median      3Q     Max 
-    ## -25.200 -19.257 -11.257   9.993 127.743 
-    ## 
-    ## Coefficients:
-    ##                 Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)       21.257      2.307   9.214   <2e-16 ***
-    ## missing_anyTRUE    3.943      6.606   0.597    0.551    
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Residual standard error: 27.68 on 162 degrees of freedom
-    ##   (4 observations deleted due to missingness)
-    ## Multiple R-squared:  0.002194,   Adjusted R-squared:  -0.003965 
-    ## F-statistic: 0.3563 on 1 and 162 DF,  p-value: 0.5514
+```
+## 
+## Call:
+## lm(formula = CTS_psych_perp_HR ~ missing_any, data = data)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -25.200 -19.257 -11.257   9.993 127.743 
+## 
+## Coefficients:
+##                 Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)       21.257      2.307   9.214   <2e-16 ***
+## missing_anyTRUE    3.943      6.606   0.597    0.551    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 27.68 on 162 degrees of freedom
+##   (4 observations deleted due to missingness)
+## Multiple R-squared:  0.002194,	Adjusted R-squared:  -0.003965 
+## F-statistic: 0.3563 on 1 and 162 DF,  p-value: 0.5514
+```
 
 ``` r
 summary(lm(CTS_sgm_perp_HR ~ missing_any, data = data))
 ```
 
-    ## 
-    ## Call:
-    ## lm(formula = CTS_sgm_perp_HR ~ missing_any, data = data)
-    ## 
-    ## Residuals:
-    ##     Min      1Q  Median      3Q     Max 
-    ## -0.7014 -0.7014 -0.7014 -0.5510 24.2986 
-    ## 
-    ## Coefficients:
-    ##                 Estimate Std. Error t value Pr(>|t|)   
-    ## (Intercept)       0.7014     0.2097   3.345  0.00102 **
-    ## missing_anyTRUE  -0.6014     0.6005  -1.001  0.31811   
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Residual standard error: 2.517 on 162 degrees of freedom
-    ##   (4 observations deleted due to missingness)
-    ## Multiple R-squared:  0.006152,   Adjusted R-squared:  1.76e-05 
-    ## F-statistic: 1.003 on 1 and 162 DF,  p-value: 0.3181
+```
+## 
+## Call:
+## lm(formula = CTS_sgm_perp_HR ~ missing_any, data = data)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -0.7014 -0.7014 -0.7014 -0.5510 24.2986 
+## 
+## Coefficients:
+##                 Estimate Std. Error t value Pr(>|t|)   
+## (Intercept)       0.7014     0.2097   3.345  0.00102 **
+## missing_anyTRUE  -0.6014     0.6005  -1.001  0.31811   
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 2.517 on 162 degrees of freedom
+##   (4 observations deleted due to missingness)
+## Multiple R-squared:  0.006152,	Adjusted R-squared:  1.76e-05 
+## F-statistic: 1.003 on 1 and 162 DF,  p-value: 0.3181
+```
 
 ``` r
 summary(lm(PANAS_life_neg ~ missing_any, data = data))
 ```
 
-    ## 
-    ## Call:
-    ## lm(formula = PANAS_life_neg ~ missing_any, data = data)
-    ## 
-    ## Residuals:
-    ##    Min     1Q Median     3Q    Max 
-    ## -4.368 -3.368 -1.444  0.632 31.632 
-    ## 
-    ## Coefficients:
-    ##                 Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)      14.3681     0.4863  29.548   <2e-16 ***
-    ## missing_anyTRUE  -0.9236     1.4588  -0.633    0.528    
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Residual standard error: 5.835 on 160 degrees of freedom
-    ##   (6 observations deleted due to missingness)
-    ## Multiple R-squared:  0.002499,   Adjusted R-squared:  -0.003735 
-    ## F-statistic: 0.4009 on 1 and 160 DF,  p-value: 0.5276
+```
+## 
+## Call:
+## lm(formula = PANAS_life_neg ~ missing_any, data = data)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+## -4.368 -3.368 -1.444  0.632 31.632 
+## 
+## Coefficients:
+##                 Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)      14.3681     0.4863  29.548   <2e-16 ***
+## missing_anyTRUE  -0.9236     1.4588  -0.633    0.528    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 5.835 on 160 degrees of freedom
+##   (6 observations deleted due to missingness)
+## Multiple R-squared:  0.002499,	Adjusted R-squared:  -0.003735 
+## F-statistic: 0.4009 on 1 and 160 DF,  p-value: 0.5276
+```
 
 ``` r
 summary(lm(PANAS_disc_neg ~ missing_any, data = data))
 ```
 
-    ## 
-    ## Call:
-    ## lm(formula = PANAS_disc_neg ~ missing_any, data = data)
-    ## 
-    ## Residuals:
-    ##    Min     1Q Median     3Q    Max 
-    ## -4.736 -3.736 -1.736  2.264 21.264 
-    ## 
-    ## Coefficients:
-    ##                 Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)      14.7361     0.4303  34.245   <2e-16 ***
-    ## missing_anyTRUE  -0.2917     1.2910  -0.226    0.822    
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Residual standard error: 5.164 on 160 degrees of freedom
-    ##   (6 observations deleted due to missingness)
-    ## Multiple R-squared:  0.0003189,  Adjusted R-squared:  -0.005929 
-    ## F-statistic: 0.05104 on 1 and 160 DF,  p-value: 0.8215
+```
+## 
+## Call:
+## lm(formula = PANAS_disc_neg ~ missing_any, data = data)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+## -4.736 -3.736 -1.736  2.264 21.264 
+## 
+## Coefficients:
+##                 Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)      14.7361     0.4303  34.245   <2e-16 ***
+## missing_anyTRUE  -0.2917     1.2910  -0.226    0.822    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 5.164 on 160 degrees of freedom
+##   (6 observations deleted due to missingness)
+## Multiple R-squared:  0.0003189,	Adjusted R-squared:  -0.005929 
+## F-statistic: 0.05104 on 1 and 160 DF,  p-value: 0.8215
+```
 
 ``` r
 summary(lm(CSI_sum ~ missing_any, data = data))
 ```
 
-    ## 
-    ## Call:
-    ## lm(formula = CSI_sum ~ missing_any, data = data)
-    ## 
-    ## Residuals:
-    ##     Min      1Q  Median      3Q     Max 
-    ## -40.986  -3.986   3.014   8.014  13.014 
-    ## 
-    ## Coefficients:
-    ##                 Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)      67.9861     0.9328  72.886   <2e-16 ***
-    ## missing_anyTRUE   1.5972     2.4679   0.647    0.518    
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Residual standard error: 11.19 on 166 degrees of freedom
-    ## Multiple R-squared:  0.002517,   Adjusted R-squared:  -0.003492 
-    ## F-statistic: 0.4189 on 1 and 166 DF,  p-value: 0.5184
+```
+## 
+## Call:
+## lm(formula = CSI_sum ~ missing_any, data = data)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -40.986  -3.986   3.014   8.014  13.014 
+## 
+## Coefficients:
+##                 Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)      67.9861     0.9328  72.886   <2e-16 ***
+## missing_anyTRUE   1.5972     2.4679   0.647    0.518    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 11.19 on 166 degrees of freedom
+## Multiple R-squared:  0.002517,	Adjusted R-squared:  -0.003492 
+## F-statistic: 0.4189 on 1 and 166 DF,  p-value: 0.5184
+```
 
 ``` r
 summary(lm(rel_length_yrs ~ missing_any, data = data))
 ```
 
-    ## 
-    ## Call:
-    ## lm(formula = rel_length_yrs ~ missing_any, data = data)
-    ## 
-    ## Residuals:
-    ##     Min      1Q  Median      3Q     Max 
-    ## -2.7619 -1.6889 -0.6691  1.6548  7.8215 
-    ## 
-    ## Coefficients:
-    ##                 Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)       3.0119     0.1856  16.231  < 2e-16 ***
-    ## missing_anyTRUE  -1.3521     0.4910  -2.754  0.00654 ** 
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Residual standard error: 2.227 on 166 degrees of freedom
-    ## Multiple R-squared:  0.0437, Adjusted R-squared:  0.03793 
-    ## F-statistic: 7.585 on 1 and 166 DF,  p-value: 0.006542
+```
+## 
+## Call:
+## lm(formula = rel_length_yrs ~ missing_any, data = data)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -2.7619 -1.6889 -0.6691  1.6548  7.8215 
+## 
+## Coefficients:
+##                 Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)       3.0119     0.1856  16.231  < 2e-16 ***
+## missing_anyTRUE  -1.3521     0.4910  -2.754  0.00654 ** 
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 2.227 on 166 degrees of freedom
+## Multiple R-squared:  0.0437,	Adjusted R-squared:  0.03793 
+## F-statistic: 7.585 on 1 and 166 DF,  p-value: 0.006542
+```
 
 ``` r
 summary(lm(Age ~ missing_any, data = data))
 ```
 
-    ## 
-    ## Call:
-    ## lm(formula = Age ~ missing_any, data = data)
-    ## 
-    ## Residuals:
-    ##     Min      1Q  Median      3Q     Max 
-    ## -7.3264 -3.3264 -0.3264  2.6736 10.6736 
-    ## 
-    ## Coefficients:
-    ##                 Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)      25.3264     0.3366  75.232   <2e-16 ***
-    ## missing_anyTRUE   0.3403     0.8907   0.382    0.703    
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Residual standard error: 4.04 on 166 degrees of freedom
-    ## Multiple R-squared:  0.0008785,  Adjusted R-squared:  -0.00514 
-    ## F-statistic: 0.146 on 1 and 166 DF,  p-value: 0.7029
+```
+## 
+## Call:
+## lm(formula = Age ~ missing_any, data = data)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -7.3264 -3.3264 -0.3264  2.6736 10.6736 
+## 
+## Coefficients:
+##                 Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)      25.3264     0.3366  75.232   <2e-16 ***
+## missing_anyTRUE   0.3403     0.8907   0.382    0.703    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 4.04 on 166 degrees of freedom
+## Multiple R-squared:  0.0008785,	Adjusted R-squared:  -0.00514 
+## F-statistic: 0.146 on 1 and 166 DF,  p-value: 0.7029
+```
 
-The only reliable effect here was those missing data reported shorter
-relationships than those not. This is likely not a large concern for
-this study, as some of the preliminary analyses above did not show that
-relationship was correlated significantly or strongly with any of the
-main variables of interest (internalized stigma, negative affect, and
-IPV).
+The only reliable effect here was those missing data reported shorter relationships than those not. This is likely not a large concern for this study, as some of the preliminary analyses above did not show that relationship was correlated significantly or strongly with any of the main variables of interest (internalized stigma, negative affect, and IPV). 
 
-For reporting, let’s re-run the linear regression on relationship length
-in `brms`:
+For reporting, let's re-run the linear regression on relationship length in `brms`:
+
 
 ``` r
 rel_length_missing <- brm(
@@ -1950,192 +2042,276 @@ rel_length_missing <- brm(
 )
 ```
 
-    ## Start sampling
+```
+## Start sampling
+```
 
-    ## Running MCMC with 4 parallel chains...
-    ## 
-    ## Chain 1 Iteration:    1 / 2000 [  0%]  (Warmup) 
-    ## Chain 1 Iteration:  100 / 2000 [  5%]  (Warmup) 
-    ## Chain 1 Iteration:  200 / 2000 [ 10%]  (Warmup) 
-    ## Chain 1 Iteration:  300 / 2000 [ 15%]  (Warmup) 
-    ## Chain 1 Iteration:  400 / 2000 [ 20%]  (Warmup) 
-    ## Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
-    ## Chain 1 Iteration:  600 / 2000 [ 30%]  (Warmup) 
-    ## Chain 1 Iteration:  700 / 2000 [ 35%]  (Warmup) 
-    ## Chain 1 Iteration:  800 / 2000 [ 40%]  (Warmup) 
-    ## Chain 1 Iteration:  900 / 2000 [ 45%]  (Warmup) 
-    ## Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
-    ## Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
-    ## Chain 1 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
-    ## Chain 1 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
-    ## Chain 1 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
-    ## Chain 1 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
-    ## Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
-    ## Chain 1 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
-    ## Chain 1 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
-    ## Chain 1 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
-    ## Chain 1 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
-    ## Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
-    ## Chain 2 Iteration:    1 / 2000 [  0%]  (Warmup) 
-    ## Chain 2 Iteration:  100 / 2000 [  5%]  (Warmup) 
-    ## Chain 2 Iteration:  200 / 2000 [ 10%]  (Warmup) 
-    ## Chain 2 Iteration:  300 / 2000 [ 15%]  (Warmup) 
-    ## Chain 2 Iteration:  400 / 2000 [ 20%]  (Warmup) 
-    ## Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
-    ## Chain 2 Iteration:  600 / 2000 [ 30%]  (Warmup) 
-    ## Chain 2 Iteration:  700 / 2000 [ 35%]  (Warmup) 
-    ## Chain 2 Iteration:  800 / 2000 [ 40%]  (Warmup) 
-    ## Chain 2 Iteration:  900 / 2000 [ 45%]  (Warmup) 
-    ## Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
-    ## Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
-    ## Chain 2 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
-    ## Chain 2 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
-    ## Chain 2 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
-    ## Chain 2 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
-    ## Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
-    ## Chain 2 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
-    ## Chain 2 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
-    ## Chain 2 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
-    ## Chain 2 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
-    ## Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
-    ## Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) 
-    ## Chain 3 Iteration:  100 / 2000 [  5%]  (Warmup) 
-    ## Chain 3 Iteration:  200 / 2000 [ 10%]  (Warmup) 
-    ## Chain 3 Iteration:  300 / 2000 [ 15%]  (Warmup) 
-    ## Chain 3 Iteration:  400 / 2000 [ 20%]  (Warmup) 
-    ## Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
-    ## Chain 3 Iteration:  600 / 2000 [ 30%]  (Warmup) 
-    ## Chain 3 Iteration:  700 / 2000 [ 35%]  (Warmup) 
-    ## Chain 3 Iteration:  800 / 2000 [ 40%]  (Warmup) 
-    ## Chain 3 Iteration:  900 / 2000 [ 45%]  (Warmup) 
-    ## Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
-    ## Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
-    ## Chain 3 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
-    ## Chain 3 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
-    ## Chain 3 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
-    ## Chain 3 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
-    ## Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
-    ## Chain 3 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
-    ## Chain 3 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
-    ## Chain 3 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
-    ## Chain 3 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
-    ## Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
-    ## Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) 
-    ## Chain 4 Iteration:  100 / 2000 [  5%]  (Warmup) 
-    ## Chain 4 Iteration:  200 / 2000 [ 10%]  (Warmup) 
-    ## Chain 4 Iteration:  300 / 2000 [ 15%]  (Warmup) 
-    ## Chain 4 Iteration:  400 / 2000 [ 20%]  (Warmup) 
-    ## Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
-    ## Chain 4 Iteration:  600 / 2000 [ 30%]  (Warmup) 
-    ## Chain 4 Iteration:  700 / 2000 [ 35%]  (Warmup) 
-    ## Chain 4 Iteration:  800 / 2000 [ 40%]  (Warmup) 
-    ## Chain 4 Iteration:  900 / 2000 [ 45%]  (Warmup) 
-    ## Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
-    ## Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
-    ## Chain 4 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
-    ## Chain 4 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
-    ## Chain 4 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
-    ## Chain 4 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
-    ## Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
-    ## Chain 4 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
-    ## Chain 4 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
-    ## Chain 4 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
-    ## Chain 4 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
-    ## Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
-    ## Chain 1 finished in 0.0 seconds.
-    ## Chain 2 finished in 0.0 seconds.
-    ## Chain 3 finished in 0.0 seconds.
-    ## Chain 4 finished in 0.0 seconds.
-    ## 
-    ## All 4 chains finished successfully.
-    ## Mean chain execution time: 0.0 seconds.
-    ## Total execution time: 0.5 seconds.
+```
+## Running MCMC with 4 parallel chains...
+## 
+## Chain 1 Iteration:    1 / 2000 [  0%]  (Warmup) 
+## Chain 1 Iteration:  100 / 2000 [  5%]  (Warmup) 
+## Chain 1 Iteration:  200 / 2000 [ 10%]  (Warmup) 
+## Chain 1 Iteration:  300 / 2000 [ 15%]  (Warmup) 
+## Chain 1 Iteration:  400 / 2000 [ 20%]  (Warmup) 
+## Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+## Chain 1 Iteration:  600 / 2000 [ 30%]  (Warmup) 
+## Chain 1 Iteration:  700 / 2000 [ 35%]  (Warmup) 
+## Chain 1 Iteration:  800 / 2000 [ 40%]  (Warmup) 
+## Chain 1 Iteration:  900 / 2000 [ 45%]  (Warmup) 
+## Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+## Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+## Chain 1 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
+## Chain 1 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
+## Chain 1 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
+## Chain 1 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
+## Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+## Chain 1 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
+## Chain 1 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
+## Chain 1 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
+## Chain 1 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
+## Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
+## Chain 2 Iteration:    1 / 2000 [  0%]  (Warmup) 
+## Chain 2 Iteration:  100 / 2000 [  5%]  (Warmup) 
+## Chain 2 Iteration:  200 / 2000 [ 10%]  (Warmup) 
+## Chain 2 Iteration:  300 / 2000 [ 15%]  (Warmup) 
+## Chain 2 Iteration:  400 / 2000 [ 20%]  (Warmup) 
+## Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+## Chain 2 Iteration:  600 / 2000 [ 30%]  (Warmup) 
+## Chain 2 Iteration:  700 / 2000 [ 35%]  (Warmup) 
+## Chain 2 Iteration:  800 / 2000 [ 40%]  (Warmup) 
+## Chain 2 Iteration:  900 / 2000 [ 45%]  (Warmup) 
+## Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+## Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+## Chain 2 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
+## Chain 2 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
+## Chain 2 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
+## Chain 2 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
+## Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+## Chain 2 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
+## Chain 2 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
+## Chain 2 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
+## Chain 2 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
+## Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
+## Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) 
+## Chain 3 Iteration:  100 / 2000 [  5%]  (Warmup) 
+## Chain 3 Iteration:  200 / 2000 [ 10%]  (Warmup) 
+## Chain 3 Iteration:  300 / 2000 [ 15%]  (Warmup) 
+## Chain 3 Iteration:  400 / 2000 [ 20%]  (Warmup) 
+## Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+## Chain 3 Iteration:  600 / 2000 [ 30%]  (Warmup) 
+## Chain 3 Iteration:  700 / 2000 [ 35%]  (Warmup) 
+## Chain 3 Iteration:  800 / 2000 [ 40%]  (Warmup) 
+## Chain 3 Iteration:  900 / 2000 [ 45%]  (Warmup) 
+## Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+## Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+## Chain 3 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
+## Chain 3 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
+## Chain 3 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
+## Chain 3 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
+## Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+## Chain 3 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
+## Chain 3 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
+## Chain 3 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
+## Chain 3 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
+## Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
+## Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) 
+## Chain 4 Iteration:  100 / 2000 [  5%]  (Warmup) 
+## Chain 4 Iteration:  200 / 2000 [ 10%]  (Warmup) 
+## Chain 4 Iteration:  300 / 2000 [ 15%]  (Warmup) 
+## Chain 4 Iteration:  400 / 2000 [ 20%]  (Warmup) 
+## Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+## Chain 4 Iteration:  600 / 2000 [ 30%]  (Warmup) 
+## Chain 4 Iteration:  700 / 2000 [ 35%]  (Warmup) 
+## Chain 4 Iteration:  800 / 2000 [ 40%]  (Warmup) 
+## Chain 4 Iteration:  900 / 2000 [ 45%]  (Warmup) 
+## Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+## Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+## Chain 4 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
+## Chain 4 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
+## Chain 4 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
+## Chain 4 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
+## Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+## Chain 4 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
+## Chain 4 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
+## Chain 4 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
+## Chain 4 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
+## Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
+## Chain 1 finished in 0.0 seconds.
+## Chain 2 finished in 0.0 seconds.
+## Chain 3 finished in 0.0 seconds.
+## Chain 4 finished in 0.0 seconds.
+## 
+## All 4 chains finished successfully.
+## Mean chain execution time: 0.0 seconds.
+## Total execution time: 0.4 seconds.
+```
 
 ``` r
 summary(rel_length_missing, prob = .89)
 ```
 
-    ##  Family: gaussian 
-    ##   Links: mu = identity; sigma = identity 
-    ## Formula: rel_length_yrs ~ 1 + missing_any 
-    ##    Data: data (Number of observations: 168) 
-    ##   Draws: 4 chains, each with iter = 2000; warmup = 1000; thin = 1;
-    ##          total post-warmup draws = 4000
-    ## 
-    ## Regression Coefficients:
-    ##                 Estimate Est.Error l-89% CI u-89% CI Rhat Bulk_ESS Tail_ESS
-    ## Intercept           3.01      0.18     2.72     3.29 1.00     4107     2927
-    ## missing_anyTRUE    -1.36      0.49    -2.15    -0.58 1.00     4284     2934
-    ## 
-    ## Further Distributional Parameters:
-    ##       Estimate Est.Error l-89% CI u-89% CI Rhat Bulk_ESS Tail_ESS
-    ## sigma     2.24      0.13     2.05     2.45 1.00     3944     3109
-    ## 
-    ## Draws were sampled using sample(hmc). For each parameter, Bulk_ESS
-    ## and Tail_ESS are effective sample size measures, and Rhat is the potential
-    ## scale reduction factor on split chains (at convergence, Rhat = 1).
+```
+##  Family: gaussian 
+##   Links: mu = identity; sigma = identity 
+## Formula: rel_length_yrs ~ 1 + missing_any 
+##    Data: data (Number of observations: 168) 
+##   Draws: 4 chains, each with iter = 2000; warmup = 1000; thin = 1;
+##          total post-warmup draws = 4000
+## 
+## Regression Coefficients:
+##                 Estimate Est.Error l-89% CI u-89% CI Rhat Bulk_ESS Tail_ESS
+## Intercept           3.01      0.18     2.72     3.29 1.00     4107     2927
+## missing_anyTRUE    -1.36      0.49    -2.15    -0.58 1.00     4284     2934
+## 
+## Further Distributional Parameters:
+##       Estimate Est.Error l-89% CI u-89% CI Rhat Bulk_ESS Tail_ESS
+## sigma     2.24      0.13     2.05     2.45 1.00     3944     3109
+## 
+## Draws were sampled using sample(hmc). For each parameter, Bulk_ESS
+## and Tail_ESS are effective sample size measures, and Rhat is the potential
+## scale reduction factor on split chains (at convergence, Rhat = 1).
+```
 
-# Prior topic discussion
+# Prior topic discussion 
 
-Let’s see whether having previously discussed a stressor topic
-meaningfully related to post-discusison negative affect.
+Let's see whether having previously discussed a stressor topic meaningfully related to post-discusison negative affect. 
 
-For discrimination topic discussions:
+For discrimination topic discussions: 
+
 
 ``` r
 summary(lm(PANAS_disc_neg ~ DiscrimTopic_choice_prior, data = data))
 ```
 
-    ## 
-    ## Call:
-    ## lm(formula = PANAS_disc_neg ~ DiscrimTopic_choice_prior, data = data)
-    ## 
-    ## Residuals:
-    ##    Min     1Q Median     3Q    Max 
-    ##  -4.75  -3.75  -1.75   2.25  21.25 
-    ## 
-    ## Coefficients:
-    ##                                                    Estimate Std. Error t value
-    ## (Intercept)                                          13.100      1.112  11.783
-    ## DiscrimTopic_choice_priorYes, previously discussed    1.650      1.191   1.386
-    ##                                                    Pr(>|t|)    
-    ## (Intercept)                                          <2e-16 ***
-    ## DiscrimTopic_choice_priorYes, previously discussed    0.168    
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Residual standard error: 4.972 on 154 degrees of freedom
-    ##   (12 observations deleted due to missingness)
-    ## Multiple R-squared:  0.01231,    Adjusted R-squared:  0.005901 
-    ## F-statistic:  1.92 on 1 and 154 DF,  p-value: 0.1679
+```
+## 
+## Call:
+## lm(formula = PANAS_disc_neg ~ DiscrimTopic_choice_prior, data = data)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+##  -4.75  -3.75  -1.75   2.25  21.25 
+## 
+## Coefficients:
+##                                                    Estimate Std. Error t value
+## (Intercept)                                          13.100      1.112  11.783
+## DiscrimTopic_choice_priorYes, previously discussed    1.650      1.191   1.386
+##                                                    Pr(>|t|)    
+## (Intercept)                                          <2e-16 ***
+## DiscrimTopic_choice_priorYes, previously discussed    0.168    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 4.972 on 154 degrees of freedom
+##   (12 observations deleted due to missingness)
+## Multiple R-squared:  0.01231,	Adjusted R-squared:  0.005901 
+## F-statistic:  1.92 on 1 and 154 DF,  p-value: 0.1679
+```
 
-For life stressor topic discussions:
+For life stressor topic discussions: 
+
 
 ``` r
 summary(lm(PANAS_life_neg ~ StressorTopic_choice_prior, data = data))
 ```
 
-    ## 
-    ## Call:
-    ## lm(formula = PANAS_life_neg ~ StressorTopic_choice_prior, data = data)
-    ## 
-    ## Residuals:
-    ##    Min     1Q Median     3Q    Max 
-    ## -4.344 -3.344 -2.344  0.656 31.656 
-    ## 
-    ## Coefficients:
-    ##                                                     Estimate Std. Error t value
-    ## (Intercept)                                          14.0000     2.9452   4.753
-    ## StressorTopic_choice_priorYes, previously discussed   0.3442     2.9832   0.115
-    ##                                                     Pr(>|t|)    
-    ## (Intercept)                                         4.51e-06 ***
-    ## StressorTopic_choice_priorYes, previously discussed    0.908    
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Residual standard error: 5.89 on 156 degrees of freedom
-    ##   (10 observations deleted due to missingness)
-    ## Multiple R-squared:  8.531e-05,  Adjusted R-squared:  -0.006324 
-    ## F-statistic: 0.01331 on 1 and 156 DF,  p-value: 0.9083
+```
+## 
+## Call:
+## lm(formula = PANAS_life_neg ~ StressorTopic_choice_prior, data = data)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+## -4.344 -3.344 -2.344  0.656 31.656 
+## 
+## Coefficients:
+##                                                     Estimate Std. Error t value
+## (Intercept)                                          14.0000     2.9452   4.753
+## StressorTopic_choice_priorYes, previously discussed   0.3442     2.9832   0.115
+##                                                     Pr(>|t|)    
+## (Intercept)                                         4.51e-06 ***
+## StressorTopic_choice_priorYes, previously discussed    0.908    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 5.89 on 156 degrees of freedom
+##   (10 observations deleted due to missingness)
+## Multiple R-squared:  8.531e-05,	Adjusted R-squared:  -0.006324 
+## F-statistic: 0.01331 on 1 and 156 DF,  p-value: 0.9083
+```
 
-We see here that it was not.
+We see here that it was not. 
+
+# Session info
+
+
+``` r
+sessionInfo()
+```
+
+```
+## R version 4.4.3 (2025-02-28 ucrt)
+## Platform: x86_64-w64-mingw32/x64
+## Running under: Windows 11 x64 (build 22631)
+## 
+## Matrix products: default
+## 
+## 
+## locale:
+## [1] LC_COLLATE=English_United States.utf8 
+## [2] LC_CTYPE=English_United States.utf8   
+## [3] LC_MONETARY=English_United States.utf8
+## [4] LC_NUMERIC=C                          
+## [5] LC_TIME=English_United States.utf8    
+## 
+## time zone: America/New_York
+## tzcode source: internal
+## 
+## attached base packages:
+## [1] stats     graphics  grDevices utils     datasets  methods   base     
+## 
+## other attached packages:
+##  [1] rstan_2.36.0.9000       StanHeaders_2.36.0.9000 tidybayes_3.0.7        
+##  [4] see_0.11.0              report_0.6.1            parameters_0.24.2      
+##  [7] performance_0.13.0      modelbased_0.10.0       insight_1.1.0          
+## [10] effectsize_1.0.0        datawizard_1.0.2        correlation_0.8.7      
+## [13] bayestestR_0.15.2       easystats_0.7.4         cmdstanr_0.9.0         
+## [16] brms_2.22.0             Rcpp_1.0.14             psych_2.5.3            
+## [19] sjmisc_2.8.10           lubridate_1.9.4         forcats_1.0.0          
+## [22] stringr_1.5.1           dplyr_1.1.4             purrr_1.0.4            
+## [25] readr_2.1.5             tidyr_1.3.1             tibble_3.2.1           
+## [28] ggplot2_3.5.1           tidyverse_2.0.0        
+## 
+## loaded via a namespace (and not attached):
+##  [1] mnormt_2.1.1         gridExtra_2.3        inline_0.3.21       
+##  [4] rlang_1.1.5          magrittr_2.0.3       snakecase_0.11.1    
+##  [7] matrixStats_1.5.0    compiler_4.4.3       loo_2.8.0           
+## [10] reshape2_1.4.4       vctrs_0.6.5          pkgconfig_2.0.3     
+## [13] arrayhelpers_1.1-0   crayon_1.5.3         fastmap_1.2.0       
+## [16] backports_1.5.0      labeling_0.4.3       utf8_1.2.4          
+## [19] rmarkdown_2.29       tzdb_0.5.0           ps_1.9.0            
+## [22] bit_4.6.0            xfun_0.52            cachem_1.1.0        
+## [25] jsonlite_2.0.0       parallel_4.4.3       R6_2.6.1            
+## [28] bslib_0.9.0          stringi_1.8.7        jquerylib_0.1.4     
+## [31] estimability_1.5.1   knitr_1.50           bayesplot_1.11.1    
+## [34] Matrix_1.7-2         timechange_0.3.0     tidyselect_1.2.1    
+## [37] rstudioapi_0.17.1    abind_1.4-8          yaml_2.3.10         
+## [40] codetools_0.2-20     sjlabelled_1.2.0     processx_3.8.6      
+## [43] pkgbuild_1.4.7       plyr_1.8.9           lattice_0.22-6      
+## [46] withr_3.0.2          bridgesampling_1.1-2 posterior_1.6.1     
+## [49] coda_0.19-4.1        evaluate_1.0.3       archive_1.1.12      
+## [52] RcppParallel_5.1.10  ggdist_3.3.2         pillar_1.10.2       
+## [55] tensorA_0.36.2.1     checkmate_2.3.2      stats4_4.4.3        
+## [58] distributional_0.5.0 generics_0.1.3       vroom_1.6.5         
+## [61] hms_1.1.3            rstantools_2.4.0     munsell_0.5.1       
+## [64] scales_1.3.0         xtable_1.8-4         glue_1.8.0          
+## [67] emmeans_1.11.0       tools_4.4.3          data.table_1.17.0   
+## [70] mvtnorm_1.3-3        grid_4.4.3           QuickJSR_1.7.0      
+## [73] colorspace_2.1-1     nlme_3.1-167         cli_3.6.4           
+## [76] svUnit_1.0.6         Brobdingnag_1.2-9    gtable_0.3.6        
+## [79] sass_0.4.9           digest_0.6.37        GPArotation_2024.3-1
+## [82] farver_2.1.2         htmltools_0.5.8.1    lifecycle_1.0.4     
+## [85] bit64_4.6.0-1
+```
+

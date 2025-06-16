@@ -1,8 +1,9 @@
 ---
 title: "analyses_basic"
-author: "T.J. Sullivan"
 date: "`r Sys.Date()`"
-output: github_document
+output:
+  html_document:
+    keep_md: true
 editor_options: 
   chunk_output_type: inline
 ---
@@ -614,3 +615,10 @@ summary(lm(PANAS_life_neg ~ StressorTopic_choice_prior, data = data))
 ```
 
 We see here that it was not. 
+
+# Session info
+
+```{r}
+sessionInfo()
+```
+

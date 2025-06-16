@@ -1,8 +1,9 @@
 ---
 title: "Main Analyses"
-author: "T.J. Sullivan"
 date: "`r Sys.Date()`"
-output: github_document
+output:
+  html_document:
+    keep_md: true
 editor_options: 
   chunk_output_type: inline
 ---
@@ -5514,3 +5515,10 @@ And in the context of this model, this would reflect:
 >> Discussion type moderates the indirect effect of internalized stigma on IPV perpetration through it's moderation of the effect of internalized stigma on post-discussion negative affect. 
 
 This is fine & dandy, but preliminary analyses showed that it's difficult to estimate this b/c of the fact that our moderating factor here is a repeated measure. Therefore, we went with the parallel mediation model approach to allow for that to happen. It also allowed us to estimate the unique effects of negative affect as well. 
+
+# Session info
+
+```{r}
+sessionInfo()
+```
+
